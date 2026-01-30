@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          color: string
+          created_at: string
+          icon: string
+          id: string
+          is_system: boolean
+          name: string
+          parent_id: string | null
+          sort_order: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          is_system?: boolean
+          name: string
+          parent_id?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          icon?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          parent_id?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipt_category_amounts: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          id: string
+          receipt_id: string
+        }
+        Insert: {
+          amount?: number
+          category_id: string
+          created_at?: string
+          id?: string
+          receipt_id: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          id?: string
+          receipt_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_category_amounts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipt_category_amounts_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipts: {
         Row: {
           clothing_amount: number | null
