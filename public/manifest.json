@@ -1,0 +1,17 @@
+{
+  "name": "ReceiptFlow",
+  "short_name": "Receipts",
+  "description": "Snap receipts, track spending",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9f7",
+  "theme_color": "#4a7c59",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}
