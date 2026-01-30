@@ -362,3 +362,41 @@ export function useReviewReceipt() {
     },
   });
 }
+
+export function useDeleteReceipt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (receipt: { id: string; image_path: string | null }) => {
+      // Delete image from storage first (if exists)
+      if (receipt.image_path) {
+        const { error: storageError } = await supabase.storage
+          .from('receipts')
+          .remove([receipt.image_path]);
+
+        if (storageError) {
+          console.error('Failed to delete image from storage:', storageError);
+          // Continue with database deletion even if storage fails
+        }
+      }
+
+      // Delete the receipt record
+      const { error: dbError } = await supabase
+        .from('receipts')
+        .delete()
+        .eq('id', receipt.id);
+
+      if (dbError) throw dbError;
+      
+      return receipt.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      queryClient.invalidateQueries({ queryKey: ['receipt-stats'] });
+      toast.success('Receipt deleted');
+    },
+    onError: (error) => {
+      toast.error(`Delete failed: ${error.message}`);
+    },
+  });
+}
