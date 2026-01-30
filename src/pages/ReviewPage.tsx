@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, X, Edit2, CheckSquare } from 'lucide-react';
+import { Check, X, Edit2, CheckSquare, ZoomIn, ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Category, CATEGORY_CONFIG, CategoryTotals } from '@/types/receipt';
 import { format } from 'date-fns';
@@ -132,24 +132,54 @@ export default function ReviewPage() {
 
         {/* Review Dialog */}
         <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Review Receipt</DialogTitle>
             </DialogHeader>
 
             {selectedReceipt && (
-              <div className="space-y-6">
-                {/* Receipt info */}
-                <div className="flex gap-4">
-                  {selectedReceipt.image_url && (
-                    <div className="shrink-0 w-24 h-32 rounded-lg overflow-hidden bg-muted">
-                      <img 
-                        src={selectedReceipt.image_url} 
-                        alt="Receipt"
-                        className="w-full h-full object-cover"
-                      />
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Receipt image - left column */}
+                {selectedReceipt.image_url && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm text-muted-foreground">Original Receipt</Label>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        asChild
+                      >
+                        <a 
+                          href={selectedReceipt.image_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="h-4 w-4 mr-1" />
+                          Open Full Size
+                        </a>
+                      </Button>
                     </div>
-                  )}
+                    <div className="rounded-lg overflow-hidden bg-muted border max-h-[500px] overflow-y-auto">
+                      {selectedReceipt.image_url.toLowerCase().endsWith('.pdf') ? (
+                        <iframe
+                          src={selectedReceipt.image_url}
+                          className="w-full h-[500px]"
+                          title="Receipt PDF"
+                        />
+                      ) : (
+                        <img 
+                          src={selectedReceipt.image_url} 
+                          alt="Receipt"
+                          className="w-full h-auto object-contain"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Receipt details - right column */}
+                <div className="space-y-6">
+                  {/* Merchant & total info */}
                   <div>
                     <h3 className="font-semibold text-lg">
                       {selectedReceipt.merchant || 'Unknown Merchant'}
@@ -168,7 +198,6 @@ export default function ReviewPage() {
                       </p>
                     )}
                   </div>
-                </div>
 
                 {/* Category splits */}
                 <div className="space-y-3">
@@ -215,6 +244,7 @@ export default function ReviewPage() {
                   })}
                 </div>
               </div>
+            </div>
             )}
 
             <DialogFooter className="gap-2">

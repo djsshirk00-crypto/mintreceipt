@@ -31,6 +31,7 @@ export function ReceiptUploader({ onUploadComplete, compact = false }: ReceiptUp
     onDrop,
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.heic'],
+      'application/pdf': ['.pdf'],
     },
     disabled: uploading,
   });
@@ -95,7 +96,7 @@ export function ReceiptUploader({ onUploadComplete, compact = false }: ReceiptUp
           <p className="mt-1 text-sm text-muted-foreground">
             {uploading
               ? 'Please wait while we save your receipt'
-              : 'JPG, PNG, or HEIC • We\'ll handle the rest'}
+              : 'JPG, PNG, HEIC, or PDF • We\'ll handle the rest'}
           </p>
         </div>
       </div>
