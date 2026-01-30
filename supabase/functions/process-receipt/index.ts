@@ -40,15 +40,68 @@ serve(async (req) => {
   }
 
   try {
-    const { receiptId } = await req.json();
-    
-    if (!receiptId) {
-      throw new Error('receiptId is required');
+    // Validate authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - missing token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase client with user's auth
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Create client with user's auth to verify token
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify the user's token
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      console.error('Auth error:', claimsError);
+      return new Response(JSON.stringify({ error: 'Invalid or expired token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userId = claimsData.claims.sub;
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Invalid token - no user ID' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Authenticated user: ${userId}`);
+
+    // Parse and validate request body
+    const body = await req.json();
+    const { receiptId } = body;
+    
+    if (!receiptId || typeof receiptId !== 'string') {
+      return new Response(JSON.stringify({ error: 'receiptId is required and must be a string' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(receiptId)) {
+      return new Response(JSON.stringify({ error: 'Invalid receiptId format' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get receipt record
@@ -59,10 +112,22 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !receipt) {
-      throw new Error(`Receipt not found: ${fetchError?.message}`);
+      return new Response(JSON.stringify({ error: 'Receipt not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log(`Processing receipt ${receiptId} for user ${receipt.user_id}`);
+    // CRITICAL: Verify the receipt belongs to the authenticated user
+    if (receipt.user_id !== userId) {
+      console.error(`User ${userId} attempted to access receipt owned by ${receipt.user_id}`);
+      return new Response(JSON.stringify({ error: 'Forbidden - you do not own this receipt' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`Processing receipt ${receiptId} for user ${userId}`);
 
     // Update status to processing
     await supabase
@@ -74,7 +139,7 @@ serve(async (req) => {
     const { data: historyData } = await supabase
       .from('line_item_history')
       .select('description, normalized_description, legacy_category, occurrence_count')
-      .eq('user_id', receipt.user_id)
+      .eq('user_id', userId)
       .order('occurrence_count', { ascending: false })
       .limit(50);
 
@@ -275,8 +340,9 @@ IMPORTANT:
     
     // Try to update receipt with error status
     try {
-      const { receiptId } = await req.clone().json();
-      if (receiptId) {
+      const body = await req.clone().json();
+      const { receiptId } = body;
+      if (receiptId && typeof receiptId === 'string') {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
