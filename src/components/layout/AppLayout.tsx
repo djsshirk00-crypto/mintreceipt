@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Inbox, CheckSquare, Settings, LogOut, Receipt } from 'lucide-react';
+import { Home, Inbox, CheckSquare, LogOut, Receipt, Tags } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: Home },
   { path: '/inbox', label: 'Inbox', icon: Inbox },
   { path: '/review', label: 'Review', icon: CheckSquare },
+  { path: '/categories', label: 'Categories', icon: Tags },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
