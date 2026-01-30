@@ -159,6 +159,20 @@ async function computeFileHash(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Helper to compute hash from URL (for backfilling old receipts)
+async function computeHashFromUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const buffer = await response.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch {
+    return null;
+  }
+}
+
 export function useUploadReceipt() {
   const queryClient = useQueryClient();
 
@@ -170,21 +184,51 @@ export function useUploadReceipt() {
 
       // Compute file hash for duplicate detection
       const fileHash = await computeFileHash(file);
+      console.log('Computed file hash:', fileHash);
 
-      // Check for duplicate receipt
-      const { data: existingReceipt } = await supabase
+      // Check for duplicate receipt by hash
+      const { data: existingByHash } = await supabase
         .from('receipts')
         .select('id, merchant, receipt_date')
         .eq('user_id', user.id)
         .eq('file_hash', fileHash)
         .maybeSingle();
 
-      if (existingReceipt) {
-        const merchantInfo = existingReceipt.merchant || 'Unknown merchant';
-        const dateInfo = existingReceipt.receipt_date 
-          ? new Date(existingReceipt.receipt_date).toLocaleDateString()
+      if (existingByHash) {
+        const merchantInfo = existingByHash.merchant || 'Unknown merchant';
+        const dateInfo = existingByHash.receipt_date 
+          ? new Date(existingByHash.receipt_date).toLocaleDateString()
           : 'unknown date';
         throw new Error(`This receipt has already been uploaded (${merchantInfo} - ${dateInfo})`);
+      }
+
+      // Also check old receipts without hashes by comparing image content
+      const { data: oldReceipts } = await supabase
+        .from('receipts')
+        .select('id, merchant, receipt_date, image_url, file_hash')
+        .eq('user_id', user.id)
+        .is('file_hash', null)
+        .not('image_url', 'is', null);
+
+      if (oldReceipts && oldReceipts.length > 0) {
+        for (const oldReceipt of oldReceipts) {
+          if (oldReceipt.image_url) {
+            const oldHash = await computeHashFromUrl(oldReceipt.image_url);
+            if (oldHash === fileHash) {
+              // Backfill the hash for this old receipt
+              await supabase
+                .from('receipts')
+                .update({ file_hash: oldHash })
+                .eq('id', oldReceipt.id);
+              
+              const merchantInfo = oldReceipt.merchant || 'Unknown merchant';
+              const dateInfo = oldReceipt.receipt_date 
+                ? new Date(oldReceipt.receipt_date).toLocaleDateString()
+                : 'unknown date';
+              throw new Error(`This receipt has already been uploaded (${merchantInfo} - ${dateInfo})`);
+            }
+          }
+        }
       }
 
       // Upload image to storage
