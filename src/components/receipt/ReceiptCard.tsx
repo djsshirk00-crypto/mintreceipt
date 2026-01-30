@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { StatusBadge } from './StatusBadge';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useSignedUrl } from '@/hooks/useSignedUrl';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -12,6 +14,7 @@ interface ReceiptCardProps {
 }
 
 export function ReceiptCard({ receipt, onClick, selected }: ReceiptCardProps) {
+  const { signedUrl, loading: imageLoading } = useSignedUrl(receipt.image_path);
   const categories: Category[] = ['groceries', 'household', 'clothing', 'other'];
   
   const categorySplits = categories
@@ -32,13 +35,21 @@ export function ReceiptCard({ receipt, onClick, selected }: ReceiptCardProps) {
       <CardContent className="p-4">
         <div className="flex gap-4">
           {/* Receipt thumbnail */}
-          {receipt.image_url && (
+          {receipt.image_path && (
             <div className="shrink-0 w-16 h-20 rounded-md overflow-hidden bg-muted">
-              <img 
-                src={receipt.image_url} 
-                alt="Receipt"
-                className="w-full h-full object-cover"
-              />
+              {imageLoading ? (
+                <Skeleton className="w-full h-full" />
+              ) : signedUrl ? (
+                <img 
+                  src={signedUrl} 
+                  alt="Receipt"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                  No image
+                </div>
+              )}
             </div>
           )}
 
