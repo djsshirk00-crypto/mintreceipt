@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useReceipts, useReviewReceipt, Receipt } from '@/hooks/useReceipts';
+import { useReceipts, useReviewReceipt, useUpdateReceipt, Receipt } from '@/hooks/useReceipts';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
 import { CategorySummaryGrid } from '@/components/receipt/CategorySummaryCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,14 +11,18 @@ import { Check, X, Edit2, CheckSquare, ExternalLink, List } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineItemsDisplay } from '@/components/receipt/LineItemsDisplay';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Category, CATEGORY_CONFIG, CategoryTotals } from '@/types/receipt';
+import { Category, CATEGORY_CONFIG, CategoryTotals, LineItem } from '@/types/receipt';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function ReviewPage() {
   const { data: receipts, isLoading } = useReceipts();
   const reviewReceipt = useReviewReceipt();
+  const updateReceipt = useUpdateReceipt();
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
+  const [editedLineItems, setEditedLineItems] = useState<LineItem[] | null>(null);
   const [adjustMode, setAdjustMode] = useState(false);
   const [adjustments, setAdjustments] = useState({
     groceries_amount: 0,
@@ -41,6 +45,7 @@ export default function ReviewPage() {
 
   const handleSelectReceipt = (receipt: Receipt) => {
     setSelectedReceipt(receipt);
+    setEditedLineItems(receipt.line_items ? [...receipt.line_items] : null);
     setAdjustMode(false);
     setAdjustments({
       groceries_amount: receipt.groceries_amount,
@@ -50,13 +55,109 @@ export default function ReviewPage() {
     });
   };
 
+  // Recalculate category totals from line items
+  const recalculateCategoryTotals = (items: LineItem[]) => {
+    const totals = { groceries_amount: 0, household_amount: 0, clothing_amount: 0, other_amount: 0 };
+    items.forEach(item => {
+      const key = `${item.category}_amount` as keyof typeof totals;
+      if (key in totals) {
+        totals[key] += item.amount;
+      }
+    });
+    return totals;
+  };
+
+  const handleLineItemCategoryChange = (index: number, newCategory: Category) => {
+    if (!editedLineItems) return;
+    
+    const updated = [...editedLineItems];
+    updated[index] = { ...updated[index], category: newCategory };
+    setEditedLineItems(updated);
+    
+    // Recalculate category totals
+    const newTotals = recalculateCategoryTotals(updated);
+    setAdjustments(newTotals);
+  };
+
+  // Save line item history for AI learning
+  const saveLineItemHistory = async (items: LineItem[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      for (const item of items) {
+        const normalized = item.description.toLowerCase().trim();
+        
+        // Check if this item already exists
+        const { data: existing } = await supabase
+          .from('line_item_history')
+          .select('id, occurrence_count')
+          .eq('user_id', user.id)
+          .eq('normalized_description', normalized)
+          .eq('legacy_category', item.category)
+          .single();
+
+        if (existing) {
+          // Update occurrence count
+          await supabase
+            .from('line_item_history')
+            .update({ 
+              occurrence_count: existing.occurrence_count + 1,
+              last_used_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+        } else {
+          // Insert new record
+          await supabase
+            .from('line_item_history')
+            .insert({
+              user_id: user.id,
+              description: item.description,
+              normalized_description: normalized,
+              legacy_category: item.category,
+            });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save line item history:', error);
+    }
+  };
+
   const handleAccept = async () => {
     if (!selectedReceipt) return;
-    await reviewReceipt.mutateAsync({
-      id: selectedReceipt.id,
-      action: 'accept',
-    });
+    
+    // Check if line items were edited
+    const lineItemsChanged = JSON.stringify(editedLineItems) !== JSON.stringify(selectedReceipt.line_items);
+    
+    if (lineItemsChanged && editedLineItems) {
+      // Save the line items with new categories and recalculated totals
+      const newTotals = recalculateCategoryTotals(editedLineItems);
+      await reviewReceipt.mutateAsync({
+        id: selectedReceipt.id,
+        action: 'adjust',
+        adjustments: {
+          ...newTotals,
+          line_items: editedLineItems as any,
+        },
+      });
+      
+      // Save to history for AI learning
+      await saveLineItemHistory(editedLineItems);
+      toast.success('Receipt reviewed and categories saved for AI learning!');
+    } else {
+      await reviewReceipt.mutateAsync({
+        id: selectedReceipt.id,
+        action: 'accept',
+      });
+      
+      // Save original line items to history
+      if (selectedReceipt.line_items) {
+        await saveLineItemHistory(selectedReceipt.line_items);
+      }
+    }
+    
     setSelectedReceipt(null);
+    setEditedLineItems(null);
   };
 
   const handleAdjust = async () => {
@@ -64,13 +165,27 @@ export default function ReviewPage() {
     await reviewReceipt.mutateAsync({
       id: selectedReceipt.id,
       action: 'adjust',
-      adjustments,
+      adjustments: {
+        ...adjustments,
+        line_items: editedLineItems as any,
+      },
     });
+    
+    // Save to history for AI learning
+    if (editedLineItems) {
+      await saveLineItemHistory(editedLineItems);
+    }
+    
     setSelectedReceipt(null);
+    setEditedLineItems(null);
     setAdjustMode(false);
   };
 
   const categories: Category[] = ['groceries', 'household', 'clothing', 'other'];
+
+  // Check if any line items have been modified
+  const hasLineItemChanges = editedLineItems && 
+    JSON.stringify(editedLineItems) !== JSON.stringify(selectedReceipt?.line_items);
 
   return (
     <AppLayout>
@@ -133,7 +248,10 @@ export default function ReviewPage() {
         </section>
 
         {/* Review Dialog */}
-        <Dialog open={!!selectedReceipt} onOpenChange={() => setSelectedReceipt(null)}>
+        <Dialog open={!!selectedReceipt} onOpenChange={() => {
+          setSelectedReceipt(null);
+          setEditedLineItems(null);
+        }}>
           <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Review Receipt</DialogTitle>
@@ -202,14 +320,32 @@ export default function ReviewPage() {
                   </div>
 
                   {/* Tabs for Line Items and Category Breakdown */}
-                  <Tabs defaultValue="categories" className="w-full">
+                  <Tabs defaultValue="line-items" className="w-full">
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="categories">Categories</TabsTrigger>
                       <TabsTrigger value="line-items" className="gap-1">
                         <List className="h-4 w-4" />
                         Line Items
                       </TabsTrigger>
+                      <TabsTrigger value="categories">Categories</TabsTrigger>
                     </TabsList>
+                    
+                    <TabsContent value="line-items" className="mt-4">
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Click a category to change it. Your corrections help the AI learn!
+                        </p>
+                        <LineItemsDisplay 
+                          lineItems={editedLineItems} 
+                          editable={true}
+                          onItemCategoryChange={handleLineItemCategoryChange}
+                        />
+                        {hasLineItemChanges && (
+                          <p className="text-xs text-primary mt-2">
+                            ✓ Category changes will be saved when you accept
+                          </p>
+                        )}
+                      </div>
+                    </TabsContent>
                     
                     <TabsContent value="categories" className="space-y-3 mt-4">
                       <div className="flex items-center justify-between">
@@ -229,7 +365,7 @@ export default function ReviewPage() {
                       {categories.map(category => {
                         const config = CATEGORY_CONFIG[category];
                         const key = `${category}_amount` as keyof typeof adjustments;
-                        const value = adjustMode ? adjustments[key] : selectedReceipt[`${category}_amount` as keyof Receipt] as number;
+                        const value = adjustments[key];
                         const isOther = category === 'other';
 
                         const handleCategoryChange = (newValue: number) => {
@@ -267,10 +403,6 @@ export default function ReviewPage() {
                         );
                       })}
                     </TabsContent>
-                    
-                    <TabsContent value="line-items" className="mt-4">
-                      <LineItemsDisplay lineItems={selectedReceipt.line_items} />
-                    </TabsContent>
                   </Tabs>
               </div>
             </div>
@@ -289,13 +421,16 @@ export default function ReviewPage() {
                 </>
               ) : (
                 <>
-                  <Button variant="outline" onClick={() => setSelectedReceipt(null)}>
+                  <Button variant="outline" onClick={() => {
+                    setSelectedReceipt(null);
+                    setEditedLineItems(null);
+                  }}>
                     <X className="h-4 w-4 mr-2" />
                     Skip
                   </Button>
                   <Button onClick={handleAccept}>
                     <Check className="h-4 w-4 mr-2" />
-                    Accept
+                    {hasLineItemChanges ? 'Save & Accept' : 'Accept'}
                   </Button>
                 </>
               )}

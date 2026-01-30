@@ -26,6 +26,13 @@ interface ProcessedReceipt {
   confidence: number;
 }
 
+interface LineItemHistory {
+  description: string;
+  normalized_description: string;
+  legacy_category: string;
+  occurrence_count: number;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -62,6 +69,17 @@ serve(async (req) => {
       .from('receipts')
       .update({ status: 'processing' })
       .eq('id', receiptId);
+
+    // Fetch user's line item history for AI learning (few-shot examples)
+    const { data: historyData } = await supabase
+      .from('line_item_history')
+      .select('description, normalized_description, legacy_category, occurrence_count')
+      .eq('user_id', receipt.user_id)
+      .order('occurrence_count', { ascending: false })
+      .limit(50);
+
+    const learnedItems: LineItemHistory[] = historyData || [];
+    console.log(`Found ${learnedItems.length} learned categorizations for user`);
 
     // Get the image from storage
     if (!receipt.image_path) {
@@ -103,6 +121,21 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
+    // Build few-shot learning examples from user history
+    let learnedExamples = '';
+    if (learnedItems.length > 0) {
+      const examples = learnedItems
+        .slice(0, 20) // Top 20 most frequent
+        .map(item => `- "${item.description}" → ${item.legacy_category}`)
+        .join('\n');
+      learnedExamples = `
+
+IMPORTANT: This user has previously categorized items like this. Use these as guidance:
+${examples}
+
+When you see similar items, use the same category the user has chosen before.`;
+    }
+
     const systemPrompt = `You are a receipt processing assistant. Analyze the receipt image and extract:
 1. Merchant/store name
 2. Date of purchase (YYYY-MM-DD format)
@@ -113,6 +146,7 @@ serve(async (req) => {
    - household: cleaning supplies, paper products, toiletries, home goods, tools, pet supplies
    - clothing: apparel, shoes, accessories
    - other: electronics, toys, gifts, anything that doesn't fit above
+${learnedExamples}
 
 Return a JSON object with this exact structure:
 {
