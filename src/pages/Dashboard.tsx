@@ -3,8 +3,8 @@ import { useReceipts, useReceiptStats, useProcessReceipt } from '@/hooks/useRece
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptUploader } from '@/components/receipt/ReceiptUploader';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
-import { CategorySummaryGrid } from '@/components/receipt/CategorySummaryCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SpendingReports } from '@/components/receipt/SpendingReports';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Inbox, CheckSquare, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -121,15 +121,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Category Summary */}
-        {stats && stats.categoryTotals.total > 0 && (
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">
-              Spending by Category
-            </h2>
-            <CategorySummaryGrid totals={stats.categoryTotals} />
-          </section>
-        )}
+        {/* Spending Reports with dynamic categories */}
+        <SpendingReports />
 
         {/* Recent receipts */}
         <section>
