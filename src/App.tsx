@@ -7,6 +7,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import Dashboard from "./pages/Dashboard";
 import InboxPage from "./pages/InboxPage";
 import ReviewPage from "./pages/ReviewPage";
+import ReviewedReceiptsPage from "./pages/ReviewedReceiptsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import BudgetPage from "./pages/BudgetPage";
 import AuthPage from "./pages/AuthPage";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/inbox" element={<AuthGuard><InboxPage /></AuthGuard>} />
           <Route path="/review" element={<AuthGuard><ReviewPage /></AuthGuard>} />
+          <Route path="/reviewed" element={<AuthGuard><ReviewedReceiptsPage /></AuthGuard>} />
           <Route path="/categories" element={<AuthGuard><CategoriesPage /></AuthGuard>} />
           <Route path="/budget" element={<AuthGuard><BudgetPage /></AuthGuard>} />
           <Route path="*" element={<NotFound />} />

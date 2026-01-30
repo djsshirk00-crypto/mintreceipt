@@ -101,25 +101,27 @@ export function SpendingReports() {
               </Card>
             </Link>
 
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <Calendar className="h-6 w-6 text-muted-foreground" />
+            <Link to="/reviewed">
+              <Card className="hover:shadow-medium transition-shadow cursor-pointer">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                      <Calendar className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      {displayLoading ? (
+                        <Skeleton className="h-8 w-16" />
+                      ) : (
+                        <p className="text-2xl font-bold text-foreground">
+                          {displayStats?.receiptCount || 0}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">Receipts</p>
+                    </div>
                   </div>
-                  <div>
-                    {displayLoading ? (
-                      <Skeleton className="h-8 w-16" />
-                    ) : (
-                      <p className="text-2xl font-bold text-foreground">
-                        {displayStats?.receiptCount || 0}
-                      </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">Receipts</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
 
             <Card>
               <CardContent className="p-5">
