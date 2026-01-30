@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Calendar, DollarSign } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Link } from 'react-router-dom';
 
 export function SpendingReports() {
   const [timeRange, setTimeRange] = useState<TimeRange>('this-month');
@@ -78,25 +79,27 @@ export function SpendingReports() {
         <TabsContent value={timeRange} className="mt-6 space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-primary">
-                    <DollarSign className="h-6 w-6" />
+            <Link to="/budget">
+              <Card className="hover:shadow-medium transition-shadow cursor-pointer">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 text-primary">
+                      <DollarSign className="h-6 w-6" />
+                    </div>
+                    <div>
+                      {displayLoading ? (
+                        <Skeleton className="h-8 w-24" />
+                      ) : (
+                        <p className="text-2xl font-bold text-foreground">
+                          ${displayStats?.total.toFixed(2) || '0.00'}
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground">Total Spent</p>
+                    </div>
                   </div>
-                  <div>
-                    {displayLoading ? (
-                      <Skeleton className="h-8 w-24" />
-                    ) : (
-                      <p className="text-2xl font-bold text-foreground">
-                        ${displayStats?.total.toFixed(2) || '0.00'}
-                      </p>
-                    )}
-                    <p className="text-sm text-muted-foreground">Total Spent</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
 
             <Card>
               <CardContent className="p-5">

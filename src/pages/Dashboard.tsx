@@ -131,6 +131,47 @@ export default function Dashboard() {
         {/* Spending Reports with dynamic categories */}
         <SpendingReports />
 
+        {/* Reviewed Receipts */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-foreground">
+              Reviewed Receipts
+            </h2>
+            <Link 
+              to="/review" 
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              View all
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {receiptsLoading ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-32" />
+              ))}
+            </div>
+          ) : (() => {
+            const reviewedReceipts = recentReceipts?.filter(r => r.status === 'reviewed') || [];
+            return reviewedReceipts.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {reviewedReceipts.slice(0, 4).map(receipt => (
+                  <ReceiptCard key={receipt.id} receipt={receipt} />
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">
+                    No reviewed receipts yet. Process and review receipts to see them here.
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })()}
+        </section>
+
         {/* Recent receipts */}
         <section>
           <div className="flex items-center justify-between mb-4">
