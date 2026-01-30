@@ -9,6 +9,7 @@ import { useBudgetsWithSpending, useBulkUpsertBudgets, useTotalBudgetSummary } f
 import { ChevronLeft, ChevronRight, Save, Target, TrendingUp, AlertTriangle, DollarSign, Wallet } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { TransactionListDialog } from './TransactionListDialog';
 
 export function BudgetManager() {
   const now = new Date();
@@ -16,6 +17,30 @@ export function BudgetManager() {
   const [year, setYear] = useState(now.getFullYear());
   const [budgetInputs, setBudgetInputs] = useState<Record<string, string>>({});
   const [isDirty, setIsDirty] = useState(false);
+  
+  // Transaction dialog state
+  const [showTransactions, setShowTransactions] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
+  const [selectedCategoryIcon, setSelectedCategoryIcon] = useState<string | null>(null);
+
+  const handleOpenAllTransactions = () => {
+    setSelectedCategoryId(null);
+    setSelectedCategoryName(null);
+    setSelectedCategoryIcon(null);
+    setShowTransactions(true);
+  };
+
+  const handleOpenCategoryTransactions = (categoryId: string, categoryName: string, categoryIcon: string) => {
+    setSelectedCategoryId(categoryId);
+    setSelectedCategoryName(categoryName);
+    setSelectedCategoryIcon(categoryIcon);
+    setShowTransactions(true);
+  };
+
+  const handleCloseTransactions = () => {
+    setShowTransactions(false);
+  };
 
   const { data: expenseCategories, isLoading: expenseLoading } = useExpenseCategories();
   const { data: incomeCategories, isLoading: incomeLoading } = useIncomeCategories();
@@ -155,7 +180,10 @@ export function BudgetManager() {
             </div>
 
             {summary && (
-              <div className="flex items-center gap-3">
+              <button 
+                onClick={handleOpenAllTransactions}
+                className="flex items-center gap-3 p-2 -m-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer text-left"
+              >
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/20">
                   <TrendingUp className="h-6 w-6 text-blue-500" />
                 </div>
@@ -165,7 +193,7 @@ export function BudgetManager() {
                   </p>
                   <p className="text-sm text-muted-foreground">Spent</p>
                 </div>
-              </div>
+              </button>
             )}
           </div>
         </CardContent>
@@ -265,17 +293,18 @@ export function BudgetManager() {
                 return (
                   <div 
                     key={category.id} 
-                    className="p-4 rounded-lg border bg-card hover:shadow-sm transition-shadow"
+                    className="p-4 rounded-lg border bg-card hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => handleOpenCategoryTransactions(category.id, category.name, category.icon)}
                   >
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-xl">{category.icon}</span>
-                      <Label className="font-medium">{category.name}</Label>
+                      <Label className="font-medium cursor-pointer">{category.name}</Label>
                       {isOverBudget && budgetAmount > 0 && (
                         <AlertTriangle className="h-4 w-4 text-destructive ml-auto" />
                       )}
                     </div>
                     
-                    <div className="relative">
+                    <div className="relative" onClick={(e) => e.stopPropagation()}>
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
                         type="number"
@@ -368,6 +397,17 @@ export function BudgetManager() {
           </CardContent>
         </Card>
       )}
+
+      {/* Transaction List Dialog */}
+      <TransactionListDialog
+        open={showTransactions}
+        onClose={handleCloseTransactions}
+        categoryId={selectedCategoryId}
+        categoryName={selectedCategoryName}
+        categoryIcon={selectedCategoryIcon}
+        month={month}
+        year={year}
+      />
     </div>
   );
 }
