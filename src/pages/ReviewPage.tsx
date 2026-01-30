@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useReceipts, useReviewReceipt, useUpdateReceipt, Receipt } from '@/hooks/useReceipts';
+import { useCategories } from '@/hooks/useCategories';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
 import { CategorySummaryGrid } from '@/components/receipt/CategorySummaryCard';
@@ -18,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export default function ReviewPage() {
+  const { data: dbCategories } = useCategories();
   const { data: receipts, isLoading } = useReceipts();
   const reviewReceipt = useReviewReceipt();
   const updateReceipt = useUpdateReceipt();
@@ -338,6 +340,7 @@ export default function ReviewPage() {
                           lineItems={editedLineItems} 
                           editable={true}
                           onItemCategoryChange={handleLineItemCategoryChange}
+                          categories={dbCategories}
                         />
                         {hasLineItemChanges && (
                           <p className="text-xs text-primary mt-2">
