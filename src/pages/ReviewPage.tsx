@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, X, Edit2, CheckSquare, ZoomIn, ExternalLink } from 'lucide-react';
+import { Check, X, Edit2, CheckSquare, ExternalLink, List } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LineItemsDisplay } from '@/components/receipt/LineItemsDisplay';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Category, CATEGORY_CONFIG, CategoryTotals } from '@/types/receipt';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -199,65 +201,77 @@ export default function ReviewPage() {
                     )}
                   </div>
 
-                {/* Category splits */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-base">Category Breakdown</Label>
-                    {!adjustMode && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setAdjustMode(true)}
-                      >
-                        <Edit2 className="h-4 w-4 mr-1" />
-                        Adjust
-                      </Button>
-                    )}
-                  </div>
-
-                  {categories.map(category => {
-                    const config = CATEGORY_CONFIG[category];
-                    const key = `${category}_amount` as keyof typeof adjustments;
-                    const value = adjustMode ? adjustments[key] : selectedReceipt[`${category}_amount` as keyof Receipt] as number;
-                    const isOther = category === 'other';
-
-                    const handleCategoryChange = (newValue: number) => {
-                      if (isOther) {
-                        // Allow direct editing of "other"
-                        setAdjustments(prev => ({ ...prev, other_amount: newValue }));
-                      } else {
-                        // When changing groceries/household/clothing, auto-adjust "other"
-                        const total = Number(selectedReceipt.total_amount) || 0;
-                        const otherCategories = ['groceries_amount', 'household_amount', 'clothing_amount'] as const;
-                        
-                        const newAdjustments = { ...adjustments, [key]: newValue };
-                        const sumOfOthers = otherCategories.reduce((sum, k) => sum + newAdjustments[k], 0);
-                        newAdjustments.other_amount = Math.max(0, Math.round((total - sumOfOthers) * 100) / 100);
-                        
-                        setAdjustments(newAdjustments);
-                      }
-                    };
-
-                    return (
-                      <div key={category} className="flex items-center gap-3">
-                        <span className="text-xl">{config.icon}</span>
-                        <span className="flex-1 font-medium">{config.label}</span>
-                        {adjustMode ? (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            className="w-28"
-                            value={value}
-                            onChange={(e) => handleCategoryChange(parseFloat(e.target.value) || 0)}
-                          />
-                        ) : (
-                          <span className="font-semibold">${value.toFixed(2)}</span>
+                  {/* Tabs for Line Items and Category Breakdown */}
+                  <Tabs defaultValue="categories" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="categories">Categories</TabsTrigger>
+                      <TabsTrigger value="line-items" className="gap-1">
+                        <List className="h-4 w-4" />
+                        Line Items
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="categories" className="space-y-3 mt-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-base">Category Breakdown</Label>
+                        {!adjustMode && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setAdjustMode(true)}
+                          >
+                            <Edit2 className="h-4 w-4 mr-1" />
+                            Adjust
+                          </Button>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
+
+                      {categories.map(category => {
+                        const config = CATEGORY_CONFIG[category];
+                        const key = `${category}_amount` as keyof typeof adjustments;
+                        const value = adjustMode ? adjustments[key] : selectedReceipt[`${category}_amount` as keyof Receipt] as number;
+                        const isOther = category === 'other';
+
+                        const handleCategoryChange = (newValue: number) => {
+                          if (isOther) {
+                            setAdjustments(prev => ({ ...prev, other_amount: newValue }));
+                          } else {
+                            const total = Number(selectedReceipt.total_amount) || 0;
+                            const otherCategories = ['groceries_amount', 'household_amount', 'clothing_amount'] as const;
+                            
+                            const newAdjustments = { ...adjustments, [key]: newValue };
+                            const sumOfOthers = otherCategories.reduce((sum, k) => sum + newAdjustments[k], 0);
+                            newAdjustments.other_amount = Math.max(0, Math.round((total - sumOfOthers) * 100) / 100);
+                            
+                            setAdjustments(newAdjustments);
+                          }
+                        };
+
+                        return (
+                          <div key={category} className="flex items-center gap-3">
+                            <span className="text-xl">{config.icon}</span>
+                            <span className="flex-1 font-medium">{config.label}</span>
+                            {adjustMode ? (
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="w-28"
+                                value={value}
+                                onChange={(e) => handleCategoryChange(parseFloat(e.target.value) || 0)}
+                              />
+                            ) : (
+                              <span className="font-semibold">${value.toFixed(2)}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </TabsContent>
+                    
+                    <TabsContent value="line-items" className="mt-4">
+                      <LineItemsDisplay lineItems={selectedReceipt.line_items} />
+                    </TabsContent>
+                  </Tabs>
               </div>
             </div>
             )}
