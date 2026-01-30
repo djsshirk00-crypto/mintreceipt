@@ -1,17 +1,29 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSpendingStats, useWeeklyTrend, useMonthlyTrend, TimeRange } from '@/hooks/useSpendingStats';
+import { useSpendingStats, useWeeklyTrend, useMonthlyTrend, useCustomSpendingStats, TimeRange } from '@/hooks/useSpendingStats';
 import { DynamicCategorySummaryGrid } from './DynamicCategorySummary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Calendar, DollarSign } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
 
 export function SpendingReports() {
   const [timeRange, setTimeRange] = useState<TimeRange>('this-month');
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
+  
   const { data: spendingStats, isLoading } = useSpendingStats(timeRange);
+  const { data: customStats, isLoading: isCustomLoading } = useCustomSpendingStats(
+    timeRange === 'custom' ? customStartDate ?? null : null,
+    timeRange === 'custom' ? customEndDate ?? null : null
+  );
   const { data: weeklyTrend } = useWeeklyTrend();
   const { data: monthlyTrend } = useMonthlyTrend();
+
+  // Use custom stats when in custom mode, otherwise use preset stats
+  const displayStats = timeRange === 'custom' ? customStats : spendingStats;
+  const displayLoading = timeRange === 'custom' ? isCustomLoading : isLoading;
 
   // Calculate trend
   const calculateTrend = () => {
@@ -37,14 +49,31 @@ export function SpendingReports() {
       <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h2 className="text-xl font-semibold text-foreground">Spending Reports</h2>
-          <TabsList>
+        <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="this-week">This Week</TabsTrigger>
             <TabsTrigger value="last-week">Last Week</TabsTrigger>
             <TabsTrigger value="this-month">This Month</TabsTrigger>
             <TabsTrigger value="last-month">Last Month</TabsTrigger>
             <TabsTrigger value="all-time">All Time</TabsTrigger>
+            <TabsTrigger value="custom">Custom</TabsTrigger>
           </TabsList>
         </div>
+
+        {/* Custom Date Range Picker */}
+        {timeRange === 'custom' && (
+          <div className="flex flex-wrap gap-4 mt-4">
+            <DatePicker
+              label="From"
+              date={customStartDate}
+              onSelect={setCustomStartDate}
+            />
+            <DatePicker
+              label="To"
+              date={customEndDate}
+              onSelect={setCustomEndDate}
+            />
+          </div>
+        )}
 
         <TabsContent value={timeRange} className="mt-6 space-y-6">
           {/* Summary Cards */}
@@ -56,11 +85,11 @@ export function SpendingReports() {
                     <DollarSign className="h-6 w-6" />
                   </div>
                   <div>
-                    {isLoading ? (
+                    {displayLoading ? (
                       <Skeleton className="h-8 w-24" />
                     ) : (
                       <p className="text-2xl font-bold text-foreground">
-                        ${spendingStats?.total.toFixed(2) || '0.00'}
+                        ${displayStats?.total.toFixed(2) || '0.00'}
                       </p>
                     )}
                     <p className="text-sm text-muted-foreground">Total Spent</p>
@@ -76,11 +105,11 @@ export function SpendingReports() {
                     <Calendar className="h-6 w-6 text-muted-foreground" />
                   </div>
                   <div>
-                    {isLoading ? (
+                    {displayLoading ? (
                       <Skeleton className="h-8 w-16" />
                     ) : (
                       <p className="text-2xl font-bold text-foreground">
-                        {spendingStats?.receiptCount || 0}
+                        {displayStats?.receiptCount || 0}
                       </p>
                     )}
                     <p className="text-sm text-muted-foreground">Receipts</p>
@@ -118,20 +147,26 @@ export function SpendingReports() {
           </div>
 
           {/* Category Breakdown */}
-          {isLoading ? (
+          {displayLoading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
             </div>
-          ) : spendingStats && spendingStats.categories.length > 0 ? (
+          ) : displayStats && displayStats.categories.length > 0 ? (
             <div>
               <h3 className="text-lg font-medium text-foreground mb-4">
-                Spending by Category - {spendingStats.label}
+                Spending by Category - {displayStats.label}
               </h3>
               <DynamicCategorySummaryGrid 
-                categories={spendingStats.categories} 
-                total={spendingStats.total}
+                categories={displayStats.categories} 
+                total={displayStats.total}
               />
             </div>
+          ) : timeRange === 'custom' && (!customStartDate || !customEndDate) ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <p className="text-muted-foreground">Select a date range to view spending data.</p>
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="p-8 text-center">

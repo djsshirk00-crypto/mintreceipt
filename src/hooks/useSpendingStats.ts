@@ -19,7 +19,7 @@ export interface SpendingPeriod {
   categories: CategorySpending[];
 }
 
-export type TimeRange = 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'all-time';
+export type TimeRange = 'this-week' | 'last-week' | 'this-month' | 'last-month' | 'all-time' | 'custom';
 
 export function useSpendingStats(timeRange: TimeRange = 'this-month') {
   const { data: dbCategories } = useCategories();
@@ -133,7 +133,86 @@ export function useSpendingStats(timeRange: TimeRange = 'this-month') {
         receiptCount: receipts?.length || 0,
       };
     },
-    enabled: true,
+    enabled: timeRange !== 'custom',
+  });
+}
+
+export function useCustomSpendingStats(startDate: Date | null, endDate: Date | null) {
+  const { data: dbCategories } = useCategories();
+
+  return useQuery({
+    queryKey: ['spending-stats', 'custom', startDate?.toISOString(), endDate?.toISOString()],
+    queryFn: async () => {
+      if (!startDate || !endDate) return null;
+
+      // Build query with custom date range
+      const { data: receipts, error } = await supabase
+        .from('receipts')
+        .select('id, total_amount, groceries_amount, household_amount, clothing_amount, other_amount, receipt_date, created_at, status')
+        .in('status', ['processed', 'reviewed'])
+        .gte('receipt_date', format(startDate, 'yyyy-MM-dd'))
+        .lte('receipt_date', format(endDate, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+
+      // Calculate totals by legacy category
+      const legacyCategoryTotals: Record<string, number> = {
+        groceries: 0,
+        household: 0,
+        clothing: 0,
+        other: 0,
+      };
+
+      let total = 0;
+
+      receipts?.forEach((r) => {
+        legacyCategoryTotals.groceries += Number(r.groceries_amount) || 0;
+        legacyCategoryTotals.household += Number(r.household_amount) || 0;
+        legacyCategoryTotals.clothing += Number(r.clothing_amount) || 0;
+        legacyCategoryTotals.other += Number(r.other_amount) || 0;
+        total += Number(r.total_amount) || 0;
+      });
+
+      // Map to category spending with database categories
+      const categories: CategorySpending[] = [];
+      
+      if (dbCategories) {
+        for (const cat of dbCategories) {
+          const legacyKey = cat.name.toLowerCase();
+          const amount = legacyCategoryTotals[legacyKey] || 0;
+          
+          categories.push({
+            categoryId: cat.id,
+            categoryName: cat.name,
+            icon: cat.icon,
+            color: cat.color,
+            amount,
+          });
+        }
+      } else {
+        categories.push(
+          { categoryId: 'groceries', categoryName: 'Groceries', icon: '🥬', color: 'groceries', amount: legacyCategoryTotals.groceries },
+          { categoryId: 'household', categoryName: 'Household', icon: '🏠', color: 'household', amount: legacyCategoryTotals.household },
+          { categoryId: 'clothing', categoryName: 'Clothing', icon: '👕', color: 'clothing', amount: legacyCategoryTotals.clothing },
+          { categoryId: 'other', categoryName: 'Other', icon: '📦', color: 'other', amount: legacyCategoryTotals.other },
+        );
+      }
+
+      // Sort by amount descending
+      categories.sort((a, b) => b.amount - a.amount);
+
+      const label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
+
+      return {
+        label,
+        startDate,
+        endDate,
+        total,
+        categories,
+        receiptCount: receipts?.length || 0,
+      };
+    },
+    enabled: !!startDate && !!endDate,
   });
 }
 
