@@ -11,7 +11,8 @@ import { Plus, Pencil, Trash2, ChevronRight, Lock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 
-const EMOJI_OPTIONS = ['📦', '🍕', '🏠', '👕', '🎬', '💊', '🚗', '🎮', '📱', '💼', '🎁', '✈️', '🏋️', '📚', '🐕', '🌿', '🔧', '💡'];
+const EMOJI_OPTIONS = ['📦', '🍕', '🏠', '👕', '🎬', '💊', '🚗', '🎮', '📱', '💼', '🎁', '✈️', '🏋️', '📚', '🐕', '🌿', '🔧', '💡', '💰', '📥'];
+const INCOME_EMOJI_OPTIONS = ['💰', '💵', '💼', '📥', '🏦', '📈', '💸', '🎯'];
 
 export default function CategoriesPage() {
   const { data: hierarchyData, isLoading } = useCategoriesWithHierarchy();
@@ -22,14 +23,17 @@ export default function CategoriesPage() {
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ name: '', icon: '📦', parent_id: '' });
+  const [formData, setFormData] = useState({ name: '', icon: '📦', parent_id: '', type: 'expense' as 'expense' | 'income' });
   const [deleteConfirm, setDeleteConfirm] = useState<Category | null>(null);
 
   const topLevelCategories = allCategories?.filter(c => !c.parent_id) || [];
+  const expenseCategories = hierarchyData?.filter(c => c.type === 'expense') || [];
+  const incomeCategories = hierarchyData?.filter(c => c.type === 'income') || [];
 
-  const handleOpenCreate = (parentId?: string) => {
+  const handleOpenCreate = (parentId?: string, type: 'expense' | 'income' = 'expense') => {
     setEditingCategory(null);
-    setFormData({ name: '', icon: '📦', parent_id: parentId || '' });
+    const defaultIcon = type === 'income' ? '💰' : '📦';
+    setFormData({ name: '', icon: defaultIcon, parent_id: parentId || '', type });
     setShowDialog(true);
   };
 
@@ -38,7 +42,8 @@ export default function CategoriesPage() {
     setFormData({ 
       name: category.name, 
       icon: category.icon, 
-      parent_id: category.parent_id || '' 
+      parent_id: category.parent_id || '',
+      type: category.type,
     });
     setShowDialog(true);
   };
@@ -60,11 +65,12 @@ export default function CategoriesPage() {
         name: formData.name.trim(),
         icon: formData.icon,
         parent_id: formData.parent_id || null,
+        type: formData.type,
       });
     }
 
     setShowDialog(false);
-    setFormData({ name: '', icon: '📦', parent_id: '' });
+    setFormData({ name: '', icon: '📦', parent_id: '', type: 'expense' });
     setEditingCategory(null);
   };
 
@@ -82,13 +88,19 @@ export default function CategoriesPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Categories</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your spending categories and subcategories.
+              Manage your income and expense categories.
             </p>
           </div>
-          <Button onClick={() => handleOpenCreate()}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Category
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => handleOpenCreate(undefined, 'income')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Income
+            </Button>
+            <Button onClick={() => handleOpenCreate(undefined, 'expense')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Expense
+            </Button>
+          </div>
         </div>
 
         {/* Categories List */}
@@ -99,98 +111,155 @@ export default function CategoriesPage() {
             ))}
           </div>
         ) : (
-          <div className="space-y-4">
-            {hierarchyData?.map(category => (
-              <Card key={category.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{category.icon}</span>
-                      <div>
+          <div className="space-y-8">
+            {/* Income Categories */}
+            {incomeCategories.length > 0 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  💰 Income Categories
+                </h2>
+                {incomeCategories.map(category => (
+                  <Card key={category.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{category.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">{category.name}</span>
+                              {category.is_system && (
+                                <Badge variant="secondary" className="text-xs gap-1">
+                                  <Lock className="h-3 w-3" />
+                                  System
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">{category.name}</span>
-                          {category.is_system && (
-                            <Badge variant="secondary" className="text-xs gap-1">
-                              <Lock className="h-3 w-3" />
-                              System
-                            </Badge>
+                          {!category.is_system && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleOpenEdit(category)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setDeleteConfirm(category)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
                           )}
                         </div>
-                        {category.children.length > 0 && (
-                          <p className="text-sm text-muted-foreground">
-                            {category.children.length} subcategories
-                          </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Expense Categories */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                🏷️ Expense Categories
+              </h2>
+              {expenseCategories.map(category => (
+                <Card key={category.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{category.icon}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{category.name}</span>
+                            {category.is_system && (
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                <Lock className="h-3 w-3" />
+                                System
+                              </Badge>
+                            )}
+                          </div>
+                          {category.children.length > 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              {category.children.length} subcategories
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenCreate(category.id, 'expense')}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Subcategory
+                        </Button>
+                        {!category.is_system && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEdit(category)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteConfirm(category)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenCreate(category.id)}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Subcategory
-                      </Button>
-                      {!category.is_system && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEdit(category)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteConfirm(category)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Subcategories */}
-                  {category.children.length > 0 && (
-                    <div className="mt-4 ml-8 space-y-2">
-                      {category.children.map(sub => (
-                        <div 
-                          key={sub.id}
-                          className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
-                        >
-                          <div className="flex items-center gap-2">
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-lg">{sub.icon}</span>
-                            <span>{sub.name}</span>
+                    {/* Subcategories */}
+                    {category.children.length > 0 && (
+                      <div className="mt-4 ml-8 space-y-2">
+                        {category.children.map(sub => (
+                          <div 
+                            key={sub.id}
+                            className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                          >
+                            <div className="flex items-center gap-2">
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-lg">{sub.icon}</span>
+                              <span>{sub.name}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleOpenEdit(sub)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => setDeleteConfirm(sub)}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => handleOpenEdit(sub)}
-                            >
-                              <Pencil className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => setDeleteConfirm(sub)}
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
@@ -216,7 +285,7 @@ export default function CategoriesPage() {
               <div className="space-y-2">
                 <Label>Icon</Label>
                 <div className="flex flex-wrap gap-2">
-                  {EMOJI_OPTIONS.map(emoji => (
+                  {(formData.type === 'income' ? INCOME_EMOJI_OPTIONS : EMOJI_OPTIONS).map(emoji => (
                     <button
                       key={emoji}
                       type="button"

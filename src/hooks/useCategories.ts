@@ -11,6 +11,7 @@ export interface Category {
   parent_id: string | null;
   is_system: boolean;
   sort_order: number;
+  type: 'expense' | 'income';
   created_at: string;
   updated_at: string;
 }
@@ -59,6 +60,38 @@ export function useCategoriesWithHierarchy() {
   });
 }
 
+export function useExpenseCategories() {
+  return useQuery({
+    queryKey: ['categories-expense'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', 'expense')
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
+}
+
+export function useIncomeCategories() {
+  return useQuery({
+    queryKey: ['categories-income'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', 'income')
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      return data as Category[];
+    },
+  });
+}
+
 export function useCreateCategory() {
   const queryClient = useQueryClient();
 
@@ -68,6 +101,7 @@ export function useCreateCategory() {
       icon?: string;
       color?: string;
       parent_id?: string | null;
+      type?: 'expense' | 'income';
     }) => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('You must be logged in');
@@ -91,6 +125,7 @@ export function useCreateCategory() {
           parent_id: category.parent_id || null,
           is_system: false,
           sort_order: maxOrder + 1,
+          type: category.type || 'expense',
         })
         .select()
         .single();
@@ -101,6 +136,8 @@ export function useCreateCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['categories-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-expense'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-income'] });
       toast.success('Category created');
     },
     onError: (error) => {
@@ -115,7 +152,7 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: async ({ id, updates }: { 
       id: string; 
-      updates: Partial<Pick<Category, 'name' | 'icon' | 'color' | 'parent_id' | 'sort_order'>> 
+      updates: Partial<Pick<Category, 'name' | 'icon' | 'color' | 'parent_id' | 'sort_order' | 'type'>> 
     }) => {
       const { data, error } = await supabase
         .from('categories')
@@ -130,6 +167,8 @@ export function useUpdateCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['categories-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-expense'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-income'] });
       toast.success('Category updated');
     },
     onError: (error) => {
@@ -153,6 +192,8 @@ export function useDeleteCategory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['categories-hierarchy'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-expense'] });
+      queryClient.invalidateQueries({ queryKey: ['categories-income'] });
       toast.success('Category deleted');
     },
     onError: (error) => {

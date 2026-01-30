@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useCategories } from './useCategories';
+import { useCategories, useExpenseCategories, useIncomeCategories } from './useCategories';
 
 export interface Budget {
   id: string;
@@ -143,26 +143,36 @@ export function useBudgetsWithSpending(month: number, year: number) {
 
 export function useTotalBudgetSummary(month: number, year: number) {
   const { data: budgetsWithSpending } = useBudgetsWithSpending(month, year);
+  const { data: incomeCategories } = useIncomeCategories();
+  const { data: expenseCategories } = useExpenseCategories();
   
   return useQuery({
-    queryKey: ['budget-summary', month, year, budgetsWithSpending],
+    queryKey: ['budget-summary', month, year, budgetsWithSpending, incomeCategories, expenseCategories],
     queryFn: () => {
-      if (!budgetsWithSpending) return null;
+      if (!budgetsWithSpending || !incomeCategories || !expenseCategories) return null;
       
-      const totalBudget = budgetsWithSpending.reduce((sum, b) => sum + b.amount, 0);
-      const totalSpent = budgetsWithSpending.reduce((sum, b) => sum + b.spent, 0);
-      const totalRemaining = totalBudget - totalSpent;
-      const overallPercentage = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+      const incomeCategoryIds = new Set(incomeCategories.map(c => c.id));
+      const expenseCategoryIds = new Set(expenseCategories.map(c => c.id));
+      
+      const incomeBudgets = budgetsWithSpending.filter(b => incomeCategoryIds.has(b.category_id));
+      const expenseBudgets = budgetsWithSpending.filter(b => expenseCategoryIds.has(b.category_id));
+      
+      const totalIncome = incomeBudgets.reduce((sum, b) => sum + b.amount, 0);
+      const totalExpenses = expenseBudgets.reduce((sum, b) => sum + b.amount, 0);
+      const totalSpent = expenseBudgets.reduce((sum, b) => sum + b.spent, 0);
+      const toBeAssigned = totalIncome - totalExpenses;
+      const overallPercentage = totalExpenses > 0 ? (totalSpent / totalExpenses) * 100 : 0;
       
       return {
-        totalBudget,
+        totalIncome,
+        totalExpenses,
         totalSpent,
-        totalRemaining,
+        toBeAssigned,
         overallPercentage,
-        categoryCount: budgetsWithSpending.length,
+        categoryCount: expenseBudgets.length,
       };
     },
-    enabled: !!budgetsWithSpending,
+    enabled: !!budgetsWithSpending && !!incomeCategories && !!expenseCategories,
   });
 }
 
