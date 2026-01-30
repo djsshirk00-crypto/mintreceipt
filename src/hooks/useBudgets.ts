@@ -54,21 +54,38 @@ export function useBudgetsWithSpending(month: number, year: number) {
 
       if (budgetError) throw budgetError;
 
-      // Get spending from receipt_category_amounts for the period
+      // Get spending from receipts for the period
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0);
       
+      // Get receipts with legacy category amounts
       const { data: receipts, error: receiptsError } = await supabase
         .from('receipts')
-        .select('id, receipt_date')
+        .select('id, receipt_date, groceries_amount, household_amount, clothing_amount, other_amount')
         .gte('receipt_date', startDate.toISOString().split('T')[0])
         .lte('receipt_date', endDate.toISOString().split('T')[0])
-        .eq('status', 'reviewed');
+        .in('status', ['processed', 'reviewed']);
 
       if (receiptsError) throw receiptsError;
 
       const receiptIds = receipts?.map(r => r.id) || [];
       
+      // Calculate spending from legacy columns by category name
+      const legacySpending: Record<string, number> = {
+        groceries: 0,
+        household: 0,
+        clothing: 0,
+        other: 0,
+      };
+      
+      (receipts || []).forEach(r => {
+        legacySpending.groceries += Number(r.groceries_amount) || 0;
+        legacySpending.household += Number(r.household_amount) || 0;
+        legacySpending.clothing += Number(r.clothing_amount) || 0;
+        legacySpending.other += Number(r.other_amount) || 0;
+      });
+
+      // Also get spending from receipt_category_amounts for the new system
       let categorySpending: Record<string, number> = {};
       
       if (receiptIds.length > 0) {
@@ -85,6 +102,20 @@ export function useBudgetsWithSpending(month: number, year: number) {
           return acc;
         }, {} as Record<string, number>);
       }
+
+      // Map legacy category names to category IDs
+      const categoryNameToId: Record<string, string> = {};
+      categories?.forEach(cat => {
+        categoryNameToId[cat.name.toLowerCase()] = cat.id;
+      });
+
+      // Merge legacy spending into category spending by matching names
+      Object.entries(legacySpending).forEach(([legacyCat, amount]) => {
+        const categoryId = categoryNameToId[legacyCat];
+        if (categoryId && amount > 0) {
+          categorySpending[categoryId] = (categorySpending[categoryId] || 0) + amount;
+        }
+      });
 
       // Combine budgets with category info and spending
       const budgetsWithSpending: BudgetWithCategory[] = (budgets || []).map(budget => {
