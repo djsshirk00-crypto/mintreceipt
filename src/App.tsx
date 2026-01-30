@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import InboxPage from "./pages/InboxPage";
 import ReviewPage from "./pages/ReviewPage";
 import CategoriesPage from "./pages/CategoriesPage";
+import BudgetPage from "./pages/BudgetPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/inbox" element={<AuthGuard><InboxPage /></AuthGuard>} />
           <Route path="/review" element={<AuthGuard><ReviewPage /></AuthGuard>} />
           <Route path="/categories" element={<AuthGuard><CategoriesPage /></AuthGuard>} />
+          <Route path="/budget" element={<AuthGuard><BudgetPage /></AuthGuard>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
