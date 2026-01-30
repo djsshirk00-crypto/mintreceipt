@@ -1,6 +1,6 @@
 {
-  "name": "ReceiptFlow",
-  "short_name": "Receipts",
+  "name": "MintReceipt",
+  "short_name": "MintReceipt",
   "description": "Snap receipts, track spending",
   "start_url": "/",
   "display": "standalone",

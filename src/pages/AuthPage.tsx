@@ -61,7 +61,7 @@ export default function AuthPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Receipt className="h-6 w-6" />
           </div>
-          <span className="text-2xl font-bold text-foreground">ReceiptFlow</span>
+          <span className="text-2xl font-bold text-foreground">MintReceipt</span>
         </div>
 
         <Card className="shadow-elevated">
