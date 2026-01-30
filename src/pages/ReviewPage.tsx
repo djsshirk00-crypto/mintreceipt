@@ -219,6 +219,24 @@ export default function ReviewPage() {
                     const config = CATEGORY_CONFIG[category];
                     const key = `${category}_amount` as keyof typeof adjustments;
                     const value = adjustMode ? adjustments[key] : selectedReceipt[`${category}_amount` as keyof Receipt] as number;
+                    const isOther = category === 'other';
+
+                    const handleCategoryChange = (newValue: number) => {
+                      if (isOther) {
+                        // Allow direct editing of "other"
+                        setAdjustments(prev => ({ ...prev, other_amount: newValue }));
+                      } else {
+                        // When changing groceries/household/clothing, auto-adjust "other"
+                        const total = Number(selectedReceipt.total_amount) || 0;
+                        const otherCategories = ['groceries_amount', 'household_amount', 'clothing_amount'] as const;
+                        
+                        const newAdjustments = { ...adjustments, [key]: newValue };
+                        const sumOfOthers = otherCategories.reduce((sum, k) => sum + newAdjustments[k], 0);
+                        newAdjustments.other_amount = Math.max(0, Math.round((total - sumOfOthers) * 100) / 100);
+                        
+                        setAdjustments(newAdjustments);
+                      }
+                    };
 
                     return (
                       <div key={category} className="flex items-center gap-3">
@@ -231,10 +249,7 @@ export default function ReviewPage() {
                             min="0"
                             className="w-28"
                             value={value}
-                            onChange={(e) => setAdjustments(prev => ({
-                              ...prev,
-                              [key]: parseFloat(e.target.value) || 0,
-                            }))}
+                            onChange={(e) => handleCategoryChange(parseFloat(e.target.value) || 0)}
                           />
                         ) : (
                           <span className="font-semibold">${value.toFixed(2)}</span>
