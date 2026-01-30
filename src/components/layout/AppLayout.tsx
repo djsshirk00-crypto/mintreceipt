@@ -38,7 +38,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Receipt className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold text-foreground">ReceiptFlow</span>
+            <span className="text-xl font-bold text-foreground">MintReceipt</span>
           </Link>
 
           {/* Desktop nav */}
