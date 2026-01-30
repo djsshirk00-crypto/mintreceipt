@@ -241,10 +241,15 @@ export function useUploadReceipt() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get signed URL (bucket is private for security)
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('receipts')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 3600); // 1 hour expiry
+
+      if (urlError) {
+        console.error('Failed to create signed URL:', urlError);
+        throw new Error('Failed to get secure URL for uploaded image');
+      }
 
       // Create receipt record with file hash
       const { data: receipt, error: insertError } = await supabase
@@ -252,7 +257,7 @@ export function useUploadReceipt() {
         .insert({
           user_id: user.id,
           image_path: fileName,
-          image_url: urlData.publicUrl,
+          image_url: urlData.signedUrl,
           status: 'inbox',
           file_hash: fileHash,
         })

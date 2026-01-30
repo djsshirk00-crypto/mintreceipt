@@ -3,12 +3,13 @@ import { useReceipts, useReviewReceipt, useUpdateReceipt, Receipt } from '@/hook
 import { useCategories } from '@/hooks/useCategories';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
+import { ReceiptImageViewer } from '@/components/receipt/ReceiptImageViewer';
 import { CategorySummaryGrid } from '@/components/receipt/CategorySummaryCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, X, Edit2, CheckSquare, ExternalLink, List } from 'lucide-react';
+import { Check, X, Edit2, CheckSquare, List } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineItemsDisplay } from '@/components/receipt/LineItemsDisplay';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -262,42 +263,7 @@ export default function ReviewPage() {
             {selectedReceipt && (
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Receipt image - left column */}
-                {selectedReceipt.image_url && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm text-muted-foreground">Original Receipt</Label>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        asChild
-                      >
-                        <a 
-                          href={selectedReceipt.image_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="h-4 w-4 mr-1" />
-                          Open Full Size
-                        </a>
-                      </Button>
-                    </div>
-                    <div className="rounded-lg overflow-hidden bg-muted border max-h-[500px] overflow-y-auto">
-                      {selectedReceipt.image_url.toLowerCase().endsWith('.pdf') ? (
-                        <iframe
-                          src={selectedReceipt.image_url}
-                          className="w-full h-[500px]"
-                          title="Receipt PDF"
-                        />
-                      ) : (
-                        <img 
-                          src={selectedReceipt.image_url} 
-                          alt="Receipt"
-                          className="w-full h-auto object-contain"
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
+                <ReceiptImageViewer imagePath={selectedReceipt.image_path} />
 
                 {/* Receipt details - right column */}
                 <div className="space-y-6">
