@@ -28,6 +28,7 @@ interface ReceiptRow {
   processed_at: string | null;
   reviewed_at: string | null;
   error_message: string | null;
+  file_hash: string | null;
 }
 
 // App-friendly receipt type
@@ -150,6 +151,14 @@ export function useReceiptStats() {
   });
 }
 
+// Helper function to compute file hash
+async function computeFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export function useUploadReceipt() {
   const queryClient = useQueryClient();
 
@@ -158,6 +167,25 @@ export function useUploadReceipt() {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('You must be logged in to upload receipts');
+
+      // Compute file hash for duplicate detection
+      const fileHash = await computeFileHash(file);
+
+      // Check for duplicate receipt
+      const { data: existingReceipt } = await supabase
+        .from('receipts')
+        .select('id, merchant, receipt_date')
+        .eq('user_id', user.id)
+        .eq('file_hash', fileHash)
+        .maybeSingle();
+
+      if (existingReceipt) {
+        const merchantInfo = existingReceipt.merchant || 'Unknown merchant';
+        const dateInfo = existingReceipt.receipt_date 
+          ? new Date(existingReceipt.receipt_date).toLocaleDateString()
+          : 'unknown date';
+        throw new Error(`This receipt has already been uploaded (${merchantInfo} - ${dateInfo})`);
+      }
 
       // Upload image to storage
       const fileExt = file.name.split('.').pop();
@@ -174,7 +202,7 @@ export function useUploadReceipt() {
         .from('receipts')
         .getPublicUrl(fileName);
 
-      // Create receipt record
+      // Create receipt record with file hash
       const { data: receipt, error: insertError } = await supabase
         .from('receipts')
         .insert({
@@ -182,6 +210,7 @@ export function useUploadReceipt() {
           image_path: fileName,
           image_url: urlData.publicUrl,
           status: 'inbox',
+          file_hash: fileHash,
         })
         .select()
         .single();

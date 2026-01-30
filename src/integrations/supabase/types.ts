@@ -151,6 +151,7 @@ export type Database = {
           created_at: string
           currency: string | null
           error_message: string | null
+          file_hash: string | null
           groceries_amount: number | null
           household_amount: number | null
           id: string
@@ -175,6 +176,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           error_message?: string | null
+          file_hash?: string | null
           groceries_amount?: number | null
           household_amount?: number | null
           id?: string
@@ -199,6 +201,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           error_message?: string | null
+          file_hash?: string | null
           groceries_amount?: number | null
           household_amount?: number | null
           id?: string

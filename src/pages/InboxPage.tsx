@@ -2,6 +2,7 @@ import { useReceipts, useProcessReceipt } from '@/hooks/useReceipts';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptUploader } from '@/components/receipt/ReceiptUploader';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
+import { ManualTransactionForm } from '@/components/receipt/ManualTransactionForm';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Inbox as InboxIcon } from 'lucide-react';
@@ -57,8 +58,11 @@ export default function InboxPage() {
           )}
         </div>
 
-        {/* Compact uploader */}
-        <ReceiptUploader compact />
+        {/* Upload options */}
+        <div className="flex flex-wrap gap-3">
+          <ReceiptUploader compact />
+          <ManualTransactionForm />
+        </div>
 
         {/* Receipt list */}
         {isLoading ? (
