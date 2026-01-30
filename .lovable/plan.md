@@ -1,103 +1,155 @@
 
-# Add Income Categories to Budget
+
+# Transaction List Feature
 
 ## Overview
-This plan adds income tracking to your zero-based budgeting system. You'll be able to set expected income for the month and see how your spending compares to your income.
+This feature adds the ability to view all transactions from the budget page. Users can click on the "Spent" indicator to see all transactions for the current month, or click on any expense category to see only transactions for that specific category.
 
 ## What You'll Get
-- A new "Income" section in the budget page where you can define income sources
-- Visual comparison of total income vs total expenses
-- A "To Be Assigned" indicator showing how much of your income is left to budget
-- Ability to track multiple income sources (e.g., Salary, Side Income, Investments)
+- Clickable "Spent" amount in the summary card that opens a transaction list modal showing all spending for the month
+- Clickable category cards that filter the transaction list to show only that category's transactions
+- A clean, sortable transaction list with merchant, date, amount, and category information
+- Visual indicators showing which category filter is active
 
-## How It Works
-Currently, your budget system only tracks spending categories. We'll extend it to also track income by:
+## User Experience
 
-1. Adding a `type` field to categories so we can distinguish between "expense" and "income" categories
-2. Adding some system-level income categories (Salary, Side Income, Other Income)
-3. Updating the budget UI to show both income and expense sections
-4. Calculating a "To Be Assigned" value (Income - Budgeted Expenses)
+When viewing the budget page:
+1. **Click on "Spent" in the summary** - Opens a dialog showing ALL transactions for the current month
+2. **Click on any expense category card** - Opens a dialog showing only transactions for THAT category
+3. In the dialog, users can see:
+   - Transaction date
+   - Merchant name
+   - Amount
+   - Category breakdown (for all-transactions view)
+   - Total at the bottom
 
 ---
 
 ## Technical Details
 
-### Database Changes
-Add a `type` column to the `categories` table:
+### New Components
 
-```sql
-ALTER TABLE public.categories 
-ADD COLUMN type text NOT NULL DEFAULT 'expense';
+**1. `src/components/budget/TransactionListDialog.tsx`**
+A new dialog component that displays transactions filtered by category and date range.
 
--- Add check constraint for valid types
-ALTER TABLE public.categories 
-ADD CONSTRAINT categories_type_check 
-CHECK (type IN ('expense', 'income'));
+Key features:
+- Accepts `categoryId` (optional), `month`, and `year` as props
+- When no categoryId is passed, shows all transactions
+- Queries receipts with status 'processed' or 'reviewed' within the date range
+- Maps legacy category amounts to the selected category for filtering
+- Displays transactions in a table format with sorting
 
--- Insert system income categories
-INSERT INTO public.categories (name, icon, color, is_system, sort_order, type) VALUES
-  ('Salary', '💰', 'income', true, 1, 'income'),
-  ('Side Income', '💼', 'income', true, 2, 'income'),
-  ('Other Income', '📥', 'income', true, 3, 'income');
+**2. Updated `src/components/budget/BudgetManager.tsx`**
+- Add state for tracking which category/view is selected (`selectedCategoryId`, `showTransactions`)
+- Make the "Spent" indicator in the summary card clickable
+- Make each expense category card clickable
+- Render the TransactionListDialog when triggered
+
+### Data Flow
+
+```text
+Budget Page
+    |
+    +-- Click "Spent" in summary ---> Open dialog with categoryId=null (all)
+    |
+    +-- Click category card --------> Open dialog with categoryId={selected}
+    |
+    v
+TransactionListDialog
+    |
+    +-- Query receipts for month/year
+    +-- Filter by categoryId if provided
+    +-- Display in table format
 ```
+
+### New Hook
+
+**`src/hooks/useTransactionsByCategory.ts`**
+A new hook to fetch transactions filtered by category and date:
+
+```typescript
+export function useTransactionsByCategory(
+  categoryId: string | null,
+  month: number,
+  year: number
+) {
+  // Query receipts for the date range
+  // Filter by category using legacy columns OR receipt_category_amounts
+  // Return formatted transaction list
+}
+```
+
+The hook will:
+1. Fetch receipts with `status in (processed, reviewed)` for the given month/year
+2. If categoryId is provided, filter to only include receipts that have spending in that category
+3. Map legacy column names (groceries, household, etc.) to category IDs using the categories table
+4. Return receipts with the specific amount for the selected category
 
 ### File Changes
 
-**1. `src/hooks/useCategories.ts`**
-- Update the `Category` interface to include `type: 'expense' | 'income'`
-- Add helper hooks: `useExpenseCategories()` and `useIncomeCategories()`
+**1. Create `src/hooks/useTransactionsByCategory.ts`**
+- New hook for fetching filtered transactions
+- Handles both legacy columns and new receipt_category_amounts table
 
-**2. `src/hooks/useBudgets.ts`**
-- Update `useTotalBudgetSummary` to calculate:
-  - Total income budgeted
-  - Total expenses budgeted
-  - "To Be Assigned" (income - expenses)
+**2. Create `src/components/budget/TransactionListDialog.tsx`**
+- Dialog component with Table showing transactions
+- Props: `open`, `onClose`, `categoryId`, `categoryName`, `month`, `year`
+- Displays: date, merchant, category amount, total amount
 
-**3. `src/components/budget/BudgetManager.tsx`**
-- Split the UI into two tabs or sections: "Income" and "Expenses"
-- Add income category inputs at the top
-- Update the summary card to show:
-  - Total Income (budgeted)
-  - Total Expenses (budgeted)
-  - To Be Assigned (remaining to budget)
-  - Spending progress against budget
+**3. Update `src/components/budget/BudgetManager.tsx`**
+- Add state: `showTransactions`, `selectedCategoryId`, `selectedCategoryName`
+- Make "Spent" clickable in summary section
+- Make expense category cards clickable
+- Add cursor-pointer styles and hover effects
+- Render TransactionListDialog
 
-**4. `src/pages/CategoriesPage.tsx`**
-- Add category type selector when creating/editing categories
-- Group categories by type in the display
+### UI Changes
 
-### UI Layout
-
+Summary Card - Make "Spent" clickable:
 ```text
 +--------------------------------------------------+
 |  SUMMARY CARD                                     |
 |  +-----------+  +-----------+  +---------------+ |
-|  | Income    |  | Expenses  |  | To Be Assigned| |
+|  | Income    |  | Budgeted  |  | To Be Assigned| |
 |  | $5,000    |  | $4,200    |  | $800          | |
 |  +-----------+  +-----------+  +---------------+ |
-+--------------------------------------------------+
-
-+--------------------------------------------------+
-|  INCOME                                           |
-|  +---------------+  +---------------+             |
-|  | 💰 Salary     |  | 💼 Side Income|             |
-|  | $______       |  | $______       |             |
-|  +---------------+  +---------------+             |
-+--------------------------------------------------+
-
-+--------------------------------------------------+
-|  EXPENSES                          [Save Budgets] |
-|  +---------------+  +---------------+             |
-|  | 🥬 Groceries  |  | 🏠 Household  |             |
-|  | $600          |  | $400          |             |
-|  | [====>    ]   |  | [=====>   ]   |             |
-|  +---------------+  +---------------+             |
-|  ...                                              |
+|                                                   |
+|  +------------------------------------------+    |
+|  |    💰 $134.02 Spent    <- CLICKABLE      |    |
+|  +------------------------------------------+    |
 +--------------------------------------------------+
 ```
 
-### Key Behavior
-- Income categories work just like expense categories - you set a budget amount
-- The "To Be Assigned" value shows if you have unbudgeted income (positive) or if you've over-budgeted (negative)
-- Zero-based budgeting goal: "To Be Assigned" should be $0 (every dollar has a job)
-- Income doesn't track actual amounts from receipts (income typically comes from bank transfers, not receipts)
+Expense Category Cards - Make entire card clickable:
+```text
++---------------------------+
+| 🥬 Groceries    <- CLICK  |
+| $______                   |
+| $54.52 spent / 15%        |  <- Shows transactions for Groceries
+| [==>                   ]  |
++---------------------------+
+```
+
+Transaction List Dialog:
+```text
++------------------------------------------------+
+|  Groceries Transactions - January 2026         |
+|  (or "All Transactions" if no category filter) |
++------------------------------------------------+
+| Date       | Merchant        | Amount          |
+|------------|-----------------|-----------------|
+| Jan 30     | Shady Maple     | $28.00          |
+| Jan 30     | Shady Maple     | $26.52          |
+|------------|-----------------|-----------------|
+|            | Total           | $54.52          |
++------------------------------------------------+
+|                               [Close]          |
++------------------------------------------------+
+```
+
+### Styling
+- Add `cursor-pointer` and hover effects to clickable elements
+- Use subtle hover state (`hover:bg-muted/50`) for the spent indicator
+- Category cards already have hover states, just need to add onClick
+- Dialog uses existing shadcn Table component for consistent styling
+
