@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useReceipts, useReceiptStats, useProcessReceipt } from '@/hooks/useReceipts';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptUploader } from '@/components/receipt/ReceiptUploader';
+import { MobileCameraCapture } from '@/components/receipt/MobileCameraCapture';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
 import { SpendingReports } from '@/components/receipt/SpendingReports';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,12 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Inbox, CheckSquare, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useReceiptStats();
   const { data: recentReceipts, isLoading: receiptsLoading } = useReceipts();
   const processReceipt = useProcessReceipt();
   const [isProcessing, setIsProcessing] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleProcessAll = async () => {
     if (!recentReceipts) return;
@@ -69,8 +72,12 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Upload zone */}
-        <ReceiptUploader />
+        {/* Upload zone - mobile camera capture or desktop dropzone */}
+        {isMobile ? (
+          <MobileCameraCapture />
+        ) : (
+          <ReceiptUploader />
+        )}
 
         {/* Status cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

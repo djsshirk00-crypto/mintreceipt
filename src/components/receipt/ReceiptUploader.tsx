@@ -27,7 +27,7 @@ export function ReceiptUploader({ onUploadComplete, compact = false }: ReceiptUp
     }
   }, [uploadReceipt, onUploadComplete]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, inputRef } = useDropzone({
     onDrop,
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.webp', '.heic'],
@@ -36,18 +36,25 @@ export function ReceiptUploader({ onUploadComplete, compact = false }: ReceiptUp
     disabled: uploading,
   });
 
+  // Add capture attribute for mobile camera access
+  const inputProps = getInputProps();
+  const mobileInputProps = {
+    ...inputProps,
+    capture: 'environment' as const,
+  };
+
   if (compact) {
     return (
       <div
         {...getRootProps()}
         className={cn(
-          'flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer transition-all',
+          'flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer transition-all touch-target',
           'bg-primary text-primary-foreground hover:bg-primary/90',
           isDragActive && 'ring-2 ring-primary ring-offset-2',
           uploading && 'opacity-50 cursor-not-allowed'
         )}
       >
-        <input {...getInputProps()} />
+        <input {...mobileInputProps} />
         {uploading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
@@ -69,7 +76,7 @@ export function ReceiptUploader({ onUploadComplete, compact = false }: ReceiptUp
         uploading && 'opacity-50 cursor-not-allowed'
       )}
     >
-      <input {...getInputProps()} />
+      <input {...mobileInputProps} />
       
       <div className="flex flex-col items-center gap-4">
         <div className={cn(

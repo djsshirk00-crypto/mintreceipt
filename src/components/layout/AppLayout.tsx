@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { FloatingCaptureButton } from './FloatingCaptureButton';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -76,15 +77,18 @@ export function AppLayout({ children }: AppLayoutProps) {
         {children}
       </main>
 
+      {/* Floating Action Button for mobile camera capture */}
+      <FloatingCaptureButton />
+
       {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background md:hidden pb-safe">
         <div className="flex items-center justify-around h-16">
           {navItems.map(({ path, label, icon: Icon }) => (
             <Link
               key={path}
               to={path}
               className={cn(
-                'flex flex-col items-center gap-1 px-4 py-2 text-xs font-medium transition-colors',
+                'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors touch-target',
                 location.pathname === path
                   ? 'text-primary'
                   : 'text-muted-foreground'
