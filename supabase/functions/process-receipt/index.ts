@@ -76,12 +76,26 @@ serve(async (req) => {
       throw new Error(`Failed to download image: ${downloadError?.message}`);
     }
 
-    // Convert image to base64
+    // Convert file to base64
     const arrayBuffer = await imageData.arrayBuffer();
     const base64Image = btoa(
       new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
     );
-    const mimeType = receipt.image_path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+    
+    // Detect MIME type from file extension
+    const filePath = receipt.image_path.toLowerCase();
+    let mimeType = 'image/jpeg'; // default
+    if (filePath.endsWith('.png')) {
+      mimeType = 'image/png';
+    } else if (filePath.endsWith('.webp')) {
+      mimeType = 'image/webp';
+    } else if (filePath.endsWith('.heic')) {
+      mimeType = 'image/heic';
+    } else if (filePath.endsWith('.pdf')) {
+      mimeType = 'application/pdf';
+    }
+    
+    console.log(`Processing file with MIME type: ${mimeType}`);
 
     // Call Lovable AI to process the receipt
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
