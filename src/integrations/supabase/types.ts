@@ -61,6 +61,50 @@ export type Database = {
           },
         ]
       }
+      line_item_history: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          description: string
+          id: string
+          last_used_at: string
+          legacy_category: string | null
+          normalized_description: string
+          occurrence_count: number
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          last_used_at?: string
+          legacy_category?: string | null
+          normalized_description: string
+          occurrence_count?: number
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          last_used_at?: string
+          legacy_category?: string | null
+          normalized_description?: string
+          occurrence_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "line_item_history_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       receipt_category_amounts: {
         Row: {
           amount: number
