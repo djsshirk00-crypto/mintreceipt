@@ -2,95 +2,126 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Receipt Budget System - Warm, Calm Financial Design */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Warm cream background for reduced eye strain */
+    --background: 40 33% 98%;
+    --foreground: 30 10% 15%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Card surfaces with subtle warmth */
+    --card: 40 30% 99%;
+    --card-foreground: 30 10% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Popover matching cards */
+    --popover: 40 30% 99%;
+    --popover-foreground: 30 10% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Sage green primary - calming, "healthy finances" */
+    --primary: 150 30% 35%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary - soft neutral */
+    --secondary: 40 15% 94%;
+    --secondary-foreground: 30 10% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted tones */
+    --muted: 40 15% 92%;
+    --muted-foreground: 30 8% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - warm amber for highlights */
+    --accent: 38 90% 55%;
+    --accent-foreground: 30 10% 15%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Status colors */
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 40 30% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 150 50% 40%;
+    --success-foreground: 40 30% 98%;
 
-    --radius: 0.5rem;
+    --warning: 38 90% 50%;
+    --warning-foreground: 30 10% 15%;
 
-    --sidebar-background: 0 0% 98%;
+    --info: 200 60% 50%;
+    --info-foreground: 40 30% 98%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Borders and inputs */
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
+    --ring: 150 30% 35%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --radius: 0.75rem;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Category colors */
+    --groceries: 150 45% 45%;
+    --household: 200 50% 50%;
+    --clothing: 280 40% 55%;
+    --other: 30 20% 50%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background: 40 25% 96%;
+    --sidebar-foreground: 30 10% 25%;
+    --sidebar-primary: 150 30% 35%;
+    --sidebar-primary-foreground: 40 30% 98%;
+    --sidebar-accent: 40 20% 92%;
+    --sidebar-accent-foreground: 30 10% 25%;
+    --sidebar-border: 40 20% 88%;
+    --sidebar-ring: 150 30% 35%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 30 15% 8%;
+    --foreground: 40 20% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 30 12% 12%;
+    --card-foreground: 40 20% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 30 12% 12%;
+    --popover-foreground: 40 20% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 150 35% 50%;
+    --primary-foreground: 30 15% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 30 10% 18%;
+    --secondary-foreground: 40 20% 90%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 30 10% 18%;
+    --muted-foreground: 40 10% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 38 85% 55%;
+    --accent-foreground: 30 15% 8%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 40 20% 95%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 150 45% 45%;
+    --success-foreground: 30 15% 8%;
+
+    --warning: 38 85% 50%;
+    --warning-foreground: 30 15% 8%;
+
+    --info: 200 55% 55%;
+    --info-foreground: 30 15% 8%;
+
+    --border: 30 10% 20%;
+    --input: 30 10% 20%;
+    --ring: 150 35% 50%;
+
+    --groceries: 150 40% 50%;
+    --household: 200 45% 55%;
+    --clothing: 280 35% 60%;
+    --other: 30 15% 55%;
+
+    --sidebar-background: 30 12% 10%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 150 35% 50%;
+    --sidebar-primary-foreground: 30 15% 8%;
+    --sidebar-accent: 30 10% 16%;
+    --sidebar-accent-foreground: 40 20% 90%;
+    --sidebar-border: 30 10% 18%;
+    --sidebar-ring: 150 35% 50%;
   }
 }
 
@@ -100,6 +131,101 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  /* Category badge colors */
+  .category-groceries {
+    @apply bg-[hsl(var(--groceries))] text-white;
+  }
+  
+  .category-household {
+    @apply bg-[hsl(var(--household))] text-white;
+  }
+  
+  .category-clothing {
+    @apply bg-[hsl(var(--clothing))] text-white;
+  }
+  
+  .category-other {
+    @apply bg-[hsl(var(--other))] text-white;
+  }
+
+  /* Subtle animations */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+
+  /* Glass effect for cards */
+  .glass {
+    @apply bg-card/80 backdrop-blur-sm;
+  }
+
+  /* Upload dropzone states */
+  .dropzone-idle {
+    @apply border-2 border-dashed border-border hover:border-primary/50 transition-colors;
+  }
+
+  .dropzone-active {
+    @apply border-2 border-dashed border-primary bg-primary/5 transition-colors;
+  }
+
+  /* Status indicators */
+  .status-inbox {
+    @apply bg-warning/20 text-warning;
+  }
+
+  .status-processed {
+    @apply bg-success/20 text-success;
+  }
+
+  .status-failed {
+    @apply bg-destructive/20 text-destructive;
+  }
+
+  .status-reviewed {
+    @apply bg-primary/20 text-primary;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
