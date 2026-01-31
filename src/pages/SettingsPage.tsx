@@ -10,7 +10,7 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogOut, Palette, Settings2, LayoutDashboard } from 'lucide-react';
+import { LogOut, Palette, Settings2, LayoutDashboard, Mail, HelpCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const timeRanges = [
@@ -177,6 +177,29 @@ export default function SettingsPage() {
             >
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Support */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              Support
+            </CardTitle>
+            <CardDescription>Need help? We're here for you</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              asChild
+              className="w-full sm:w-auto"
+            >
+              <a href="mailto:support@mintreceipt.app">
+                <Mail className="h-4 w-4 mr-2" />
+                Contact Support
+              </a>
             </Button>
           </CardContent>
         </Card>

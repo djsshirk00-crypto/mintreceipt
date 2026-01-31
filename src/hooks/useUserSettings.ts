@@ -10,6 +10,7 @@ export interface UserSettings {
   default_time_range: string;
   show_weekly_trend: boolean;
   show_monthly_trend: boolean;
+  marketing_opt_in: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ const defaultSettings: Omit<UserSettings, 'id' | 'user_id' | 'created_at' | 'upd
   default_time_range: 'this-month',
   show_weekly_trend: true,
   show_monthly_trend: true,
+  marketing_opt_in: false,
 };
 
 export function useUserSettings() {

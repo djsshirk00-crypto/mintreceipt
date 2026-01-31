@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Receipt, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -14,18 +15,28 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
       
       if (error) throw error;
+
+      // Create user settings with marketing preference
+      if (data.user) {
+        await supabase.from('user_settings').insert({
+          user_id: data.user.id,
+          marketing_opt_in: marketingOptIn,
+        });
+      }
+
       toast.success('Check your email to confirm your account!');
     } catch (error: any) {
       toast.error(error.message);
@@ -133,6 +144,19 @@ export default function AuthPage() {
                       required
                       minLength={6}
                     />
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <Checkbox
+                      id="marketing-opt-in"
+                      checked={marketingOptIn}
+                      onCheckedChange={(checked) => setMarketingOptIn(checked === true)}
+                    />
+                    <Label 
+                      htmlFor="marketing-opt-in" 
+                      className="text-sm font-normal leading-tight cursor-pointer"
+                    >
+                      I'd like to receive tips & product updates via email
+                    </Label>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

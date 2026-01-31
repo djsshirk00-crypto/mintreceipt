@@ -36,13 +36,20 @@ type TransactionFormData = z.infer<typeof transactionSchema>;
 
 interface ManualTransactionFormProps {
   onComplete?: () => void;
+  // Support controlled mode for FAB
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function ManualTransactionForm({ onComplete }: ManualTransactionFormProps) {
-  const [open, setOpen] = useState(false);
+export function ManualTransactionForm({ onComplete, open, onOpenChange }: ManualTransactionFormProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { data: categories } = useCategories();
   const queryClient = useQueryClient();
+
+  // Use controlled state if provided, otherwise use internal state
+  const isOpen = open !== undefined ? open : internalOpen;
+  const setIsOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
 
   const {
     register,
@@ -92,11 +99,16 @@ export function ManualTransactionForm({ onComplete }: ManualTransactionFormProps
 
       if (error) throw error;
 
+      // Haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+
       toast.success('Transaction added successfully');
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       queryClient.invalidateQueries({ queryKey: ['receipt-stats'] });
       reset();
-      setOpen(false);
+      setIsOpen(false);
       onComplete?.();
     } catch (error: any) {
       toast.error(`Failed to add transaction: ${error.message}`);
@@ -105,104 +117,118 @@ export function ManualTransactionForm({ onComplete }: ManualTransactionFormProps
     }
   };
 
+  const dialogContent = (
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Add Manual Transaction</DialogTitle>
+      </DialogHeader>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="merchant">Merchant</Label>
+          <Input
+            id="merchant"
+            placeholder="Store name"
+            {...register('merchant')}
+          />
+          {errors.merchant && (
+            <p className="text-sm text-destructive">{errors.merchant.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="receipt_date">Date</Label>
+          <Input
+            id="receipt_date"
+            type="date"
+            {...register('receipt_date')}
+          />
+          {errors.receipt_date && (
+            <p className="text-sm text-destructive">{errors.receipt_date.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="total_amount">Amount</Label>
+          <Input
+            id="total_amount"
+            type="number"
+            step="0.01"
+            placeholder="0.00"
+            {...register('total_amount')}
+          />
+          {errors.total_amount && (
+            <p className="text-sm text-destructive">{errors.total_amount.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Category</Label>
+          <Select
+            value={selectedCategory}
+            onValueChange={(value) => setValue('category', value)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select category" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories?.map((cat) => (
+                <SelectItem key={cat.id} value={cat.name}>
+                  <span className="flex items-center gap-2">
+                    <span>{cat.icon}</span>
+                    <span>{cat.name}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.category && (
+            <p className="text-sm text-destructive">{errors.category.message}</p>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsOpen(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Adding...
+              </>
+            ) : (
+              'Add Transaction'
+            )}
+          </Button>
+        </div>
+      </form>
+    </DialogContent>
+  );
+
+  // If controlled mode (no trigger needed)
+  if (open !== undefined) {
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        {dialogContent}
+      </Dialog>
+    );
+  }
+
+  // Uncontrolled mode with trigger button
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Plus className="h-4 w-4" />
           Add Manual Entry
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add Manual Transaction</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="merchant">Merchant</Label>
-            <Input
-              id="merchant"
-              placeholder="Store name"
-              {...register('merchant')}
-            />
-            {errors.merchant && (
-              <p className="text-sm text-destructive">{errors.merchant.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="receipt_date">Date</Label>
-            <Input
-              id="receipt_date"
-              type="date"
-              {...register('receipt_date')}
-            />
-            {errors.receipt_date && (
-              <p className="text-sm text-destructive">{errors.receipt_date.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="total_amount">Amount</Label>
-            <Input
-              id="total_amount"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              {...register('total_amount')}
-            />
-            {errors.total_amount && (
-              <p className="text-sm text-destructive">{errors.total_amount.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Category</Label>
-            <Select
-              value={selectedCategory}
-              onValueChange={(value) => setValue('category', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.name}>
-                    <span className="flex items-center gap-2">
-                      <span>{cat.icon}</span>
-                      <span>{cat.name}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.category && (
-              <p className="text-sm text-destructive">{errors.category.message}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Adding...
-                </>
-              ) : (
-                'Add Transaction'
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
+      {dialogContent}
     </Dialog>
   );
 }
