@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { OnboardingSpotlight, OnboardingStep } from './OnboardingSpotlight';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -69,12 +69,20 @@ export function OnboardingTour() {
   const navigate = useNavigate();
   const { settings, isLoading } = useUserSettings();
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [hasChecked, setHasChecked] = useState(false);
+  // Use ref to track if we've processed the initial check - persists across renders
+  const hasProcessed = useRef(false);
 
-  const isOnDashboard = location.pathname === '/';
+  const isOnDashboard = location.pathname === '/' || location.pathname.startsWith('/?');
 
   useEffect(() => {
-    if (isLoading || hasChecked) return;
+    // Reset the processed flag when settings change (e.g., after replay)
+    if (!isLoading && settings.user_id && settings.onboarding_version_seen === 0) {
+      hasProcessed.current = false;
+    }
+  }, [settings.onboarding_version_seen, settings.user_id, isLoading]);
+
+  useEffect(() => {
+    if (isLoading || hasProcessed.current) return;
 
     // Check if user needs onboarding
     const needsOnboarding = 
@@ -87,6 +95,9 @@ export function OnboardingTour() {
         return;
       }
       
+      // Mark as processed before showing
+      hasProcessed.current = true;
+      
       // Small delay to let the page render first
       const timer = setTimeout(() => {
         setShowOnboarding(true);
@@ -94,12 +105,13 @@ export function OnboardingTour() {
       return () => clearTimeout(timer);
     }
 
-    setHasChecked(true);
-  }, [settings, isLoading, hasChecked, isOnDashboard, navigate]);
+    // Mark as processed if user doesn't need onboarding
+    hasProcessed.current = true;
+  }, [settings, isLoading, isOnDashboard, navigate]);
 
   const handleComplete = async () => {
     setShowOnboarding(false);
-    setHasChecked(true);
+    hasProcessed.current = true;
 
     // Mark onboarding as complete
     if (settings.user_id) {
@@ -115,7 +127,7 @@ export function OnboardingTour() {
 
   const handleSkip = async () => {
     setShowOnboarding(false);
-    setHasChecked(true);
+    hasProcessed.current = true;
 
     // Also mark as complete when skipping
     if (settings.user_id) {
@@ -161,8 +173,9 @@ export function useOnboardingTour() {
         return;
       }
 
-      // Use window.location.replace for a clean navigation that resets React state
-      window.location.replace('/');
+      // Force a hard reload to clear all React state and cache
+      // Using href with cache-busting timestamp ensures fresh data
+      window.location.href = '/?replay=' + Date.now();
     }
   };
 
