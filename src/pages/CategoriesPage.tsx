@@ -1,20 +1,19 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useCategories, useCategoriesWithHierarchy, useCreateCategory, useUpdateCategory, useDeleteCategory, useInitializeCategories, Category } from '@/hooks/useCategories';
+import { useCategories, useCategoriesWithHierarchy, useCreateCategory, useUpdateCategory, useDeleteCategory, Category } from '@/hooks/useCategories';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash2, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const EMOJI_OPTIONS = ['📦', '🍕', '🏠', '👕', '🎬', '💊', '🚗', '🎮', '📱', '💼', '🎁', '✈️', '🏋️', '📚', '🐕', '🌿', '🔧', '💡', '💰', '📥'];
 const INCOME_EMOJI_OPTIONS = ['💰', '💵', '💼', '📥', '🏦', '📈', '💸', '🎯'];
 
 export default function CategoriesPage() {
-  const { isInitializing, isInitialized } = useInitializeCategories();
   const { data: hierarchyData, isLoading } = useCategoriesWithHierarchy();
   const { data: allCategories } = useCategories();
   const createCategory = useCreateCategory();
@@ -79,27 +78,6 @@ export default function CategoriesPage() {
     await deleteCategory.mutateAsync(deleteConfirm.id);
     setDeleteConfirm(null);
   };
-
-  // Show loading state while initializing categories
-  if (isInitializing || !isInitialized) {
-    return (
-      <AppLayout>
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Categories</h1>
-              <p className="text-muted-foreground mt-1">
-                Setting up your categories...
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
 
   return (
     <AppLayout>

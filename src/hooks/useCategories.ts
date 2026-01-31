@@ -106,34 +106,45 @@ async function ensureUserCategories(userId: string): Promise<boolean> {
 
 // Hook to ensure categories are initialized for the user
 export function useInitializeCategories() {
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    let cancelled = false;
+    
     const init = async () => {
-      setIsInitializing(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const cloned = await ensureUserCategories(user.id);
-          if (cloned) {
-            // Invalidate queries to refetch with new user categories
-            queryClient.invalidateQueries({ queryKey: ['categories'] });
-            queryClient.invalidateQueries({ queryKey: ['categories-hierarchy'] });
-            queryClient.invalidateQueries({ queryKey: ['categories-expense'] });
-            queryClient.invalidateQueries({ queryKey: ['categories-income'] });
-          }
+        if (!user || cancelled) {
+          setIsInitializing(false);
+          setIsInitialized(true);
+          return;
+        }
+        
+        const cloned = await ensureUserCategories(user.id);
+        if (cloned && !cancelled) {
+          // Invalidate queries to refetch with new user categories
+          await queryClient.invalidateQueries({ queryKey: ['categories'] });
+          await queryClient.invalidateQueries({ queryKey: ['categories-hierarchy'] });
+          await queryClient.invalidateQueries({ queryKey: ['categories-expense'] });
+          await queryClient.invalidateQueries({ queryKey: ['categories-income'] });
         }
       } catch (error) {
         console.error('Failed to initialize categories:', error);
       } finally {
-        setIsInitializing(false);
-        setIsInitialized(true);
+        if (!cancelled) {
+          setIsInitializing(false);
+          setIsInitialized(true);
+        }
       }
     };
 
     init();
+    
+    return () => {
+      cancelled = true;
+    };
   }, [queryClient]);
 
   return { isInitializing, isInitialized };

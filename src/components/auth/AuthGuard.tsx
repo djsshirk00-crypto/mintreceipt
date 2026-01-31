@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Loader2 } from 'lucide-react';
+import { useInitializeCategories } from '@/hooks/useCategories';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -12,6 +13,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Initialize categories for the user (clones system categories on first use)
+  const { isInitializing, isInitialized } = useInitializeCategories();
 
   useEffect(() => {
     // Check current session
@@ -34,7 +38,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  if (loading) {
+  if (loading || (user && isInitializing && !isInitialized)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
