@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export interface OnboardingStep {
   id: string;
@@ -31,6 +32,8 @@ export function OnboardingSpotlight({
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const isMobile = useIsMobile();
 
   const step = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
@@ -67,7 +70,7 @@ export function OnboardingSpotlight({
     };
   }, [isOpen, updateTargetRect, currentStep]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     if (isLastStep) {
       onComplete();
     } else {
@@ -77,9 +80,9 @@ export function OnboardingSpotlight({
         setIsAnimating(false);
       }, 150);
     }
-  };
+  }, [isLastStep, onComplete]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (!isFirstStep) {
       setIsAnimating(true);
       setTimeout(() => {
@@ -87,33 +90,74 @@ export function OnboardingSpotlight({
         setIsAnimating(false);
       }, 150);
     }
-  };
+  }, [isFirstStep]);
 
   const handleSkip = () => {
     onSkip();
   };
 
+  // Swipe gesture handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+    
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    const threshold = 50; // Minimum swipe distance
+
+    if (Math.abs(diff) > threshold) {
+      if (diff > 0) {
+        // Swipe left - next
+        handleNext();
+      } else {
+        // Swipe right - back
+        handleBack();
+      }
+    }
+    setTouchStart(null);
+  };
+
   if (!isOpen) return null;
 
-  // Calculate tooltip position
+  // Calculate tooltip position - optimized for mobile
   const getTooltipStyle = (): React.CSSProperties => {
+    const safeAreaBottom = isMobile ? 100 : 0; // Account for bottom nav on mobile
+    const padding = isMobile ? 12 : 16;
+    const tooltipWidth = isMobile ? Math.min(320, window.innerWidth - 32) : 320;
+    const tooltipHeight = isMobile ? 220 : 200;
+
     if (!targetRect || step.position === 'center') {
+      // On mobile, position centered cards slightly higher to avoid bottom nav
       return {
-        top: '50%',
+        top: isMobile ? '40%' : '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
+        width: tooltipWidth,
       };
     }
-
-    const padding = 16;
-    const tooltipWidth = 320;
-    const tooltipHeight = 200;
 
     let top: number | string = '50%';
     let left: number | string = '50%';
     let transform = 'translate(-50%, -50%)';
 
-    const position = step.position || 'bottom';
+    // On mobile, prefer bottom or top positioning to keep tooltip visible
+    let position = step.position || 'bottom';
+    
+    // Smart repositioning on mobile
+    if (isMobile) {
+      const viewportHeight = window.innerHeight;
+      const targetCenter = targetRect.top + targetRect.height / 2;
+      
+      // If target is in upper half, show tooltip below; if lower half, show above
+      if (targetCenter < viewportHeight / 2) {
+        position = 'bottom';
+      } else {
+        position = 'top';
+      }
+    }
 
     switch (position) {
       case 'top':
@@ -138,19 +182,24 @@ export function OnboardingSpotlight({
         break;
     }
 
-    // Keep tooltip in viewport
+    // Keep tooltip in viewport with safe areas
     if (typeof left === 'number') {
       left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
     }
     if (typeof top === 'number') {
-      top = Math.max(padding, Math.min(top, window.innerHeight - tooltipHeight - padding));
+      const maxTop = window.innerHeight - tooltipHeight - padding - safeAreaBottom;
+      top = Math.max(padding, Math.min(top, maxTop));
     }
 
-    return { top, left, transform };
+    return { top, left, transform, width: tooltipWidth };
   };
 
   const content = (
-    <div className="fixed inset-0 z-[100]">
+    <div 
+      className="fixed inset-0 z-[100]"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Overlay with spotlight cutout */}
       <svg
         className="absolute inset-0 w-full h-full"
@@ -176,7 +225,7 @@ export function OnboardingSpotlight({
           y="0"
           width="100%"
           height="100%"
-          fill="rgba(0, 0, 0, 0.75)"
+          fill="rgba(0, 0, 0, 0.8)"
           mask="url(#spotlight-mask)"
           style={{ pointerEvents: 'auto' }}
           onClick={(e) => e.stopPropagation()}
@@ -196,76 +245,113 @@ export function OnboardingSpotlight({
         />
       )}
 
-      {/* Tooltip */}
+      {/* Tooltip Card - Mobile optimized */}
       <div
         className={cn(
-          'absolute z-10 w-80 max-w-[calc(100vw-2rem)] p-6 bg-card border border-border rounded-2xl shadow-elevated',
-          'transition-opacity duration-150',
-          isAnimating ? 'opacity-0' : 'opacity-100'
+          'absolute z-10 p-5 bg-card border border-border rounded-2xl shadow-elevated',
+          'transition-all duration-150 ease-out',
+          isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100',
+          isMobile && 'max-w-[calc(100vw-1.5rem)]'
         )}
         style={getTooltipStyle()}
       >
-        {/* Skip button */}
+        {/* Skip button - larger touch target on mobile */}
         <button
           onClick={handleSkip}
-          className="absolute top-3 right-3 p-1 text-muted-foreground hover:text-foreground rounded-md transition-colors"
+          className={cn(
+            'absolute top-2 right-2 text-muted-foreground hover:text-foreground rounded-full transition-colors',
+            isMobile ? 'p-2.5' : 'p-1.5'
+          )}
           aria-label="Skip tutorial"
         >
-          <X className="h-4 w-4" />
+          <X className={cn(isMobile ? 'h-5 w-5' : 'h-4 w-4')} />
         </button>
 
         {/* Step content */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {step.icon && (
-            <span className="text-3xl">{step.icon}</span>
+            <span className={cn('block', isMobile ? 'text-4xl' : 'text-3xl')}>
+              {step.icon}
+            </span>
           )}
-          <h3 className="text-lg font-semibold text-foreground pr-6">
+          <h3 className={cn(
+            'font-semibold text-foreground pr-8',
+            isMobile ? 'text-xl' : 'text-lg'
+          )}>
             {step.title}
           </h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className={cn(
+            'text-muted-foreground leading-relaxed',
+            isMobile ? 'text-base' : 'text-sm'
+          )}>
             {step.description}
           </p>
         </div>
 
+        {/* Swipe hint on mobile */}
+        {isMobile && !isFirstStep && !isLastStep && (
+          <p className="text-xs text-muted-foreground/60 text-center mt-3">
+            Swipe to navigate
+          </p>
+        )}
+
         {/* Progress & Navigation */}
-        <div className="flex items-center justify-between mt-6">
-          {/* Progress dots */}
-          <div className="flex gap-1.5">
+        <div className={cn(
+          'flex items-center justify-between',
+          isMobile ? 'mt-5' : 'mt-6'
+        )}>
+          {/* Progress dots - larger on mobile */}
+          <div className={cn('flex', isMobile ? 'gap-2' : 'gap-1.5')}>
             {steps.map((_, index) => (
-              <div
+              <button
                 key={index}
+                onClick={() => {
+                  if (index !== currentStep) {
+                    setIsAnimating(true);
+                    setTimeout(() => {
+                      setCurrentStep(index);
+                      setIsAnimating(false);
+                    }, 150);
+                  }
+                }}
                 className={cn(
-                  'h-2 rounded-full transition-all duration-200',
+                  'rounded-full transition-all duration-200',
+                  isMobile ? 'h-2.5' : 'h-2',
                   index === currentStep
-                    ? 'w-6 bg-primary'
+                    ? cn(isMobile ? 'w-7' : 'w-6', 'bg-primary')
                     : index < currentStep
-                    ? 'w-2 bg-primary/50'
-                    : 'w-2 bg-muted'
+                    ? cn(isMobile ? 'w-2.5' : 'w-2', 'bg-primary/50')
+                    : cn(isMobile ? 'w-2.5' : 'w-2', 'bg-muted')
                 )}
+                aria-label={`Go to step ${index + 1}`}
               />
             ))}
           </div>
 
-          {/* Navigation buttons */}
-          <div className="flex gap-2">
+          {/* Navigation buttons - larger touch targets on mobile */}
+          <div className={cn('flex', isMobile ? 'gap-3' : 'gap-2')}>
             {!isFirstStep && (
               <Button
                 variant="ghost"
-                size="sm"
+                size={isMobile ? 'default' : 'sm'}
                 onClick={handleBack}
                 className="gap-1"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Back
+                <ChevronLeft className={cn(isMobile ? 'h-5 w-5' : 'h-4 w-4')} />
+                {!isMobile && 'Back'}
               </Button>
             )}
-            <Button size="sm" onClick={handleNext} className="gap-1">
+            <Button 
+              size={isMobile ? 'default' : 'sm'} 
+              onClick={handleNext} 
+              className={cn('gap-1', isMobile && 'px-5')}
+            >
               {isLastStep ? (
                 "Get Started"
               ) : (
                 <>
                   Next
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className={cn(isMobile ? 'h-5 w-5' : 'h-4 w-4')} />
                 </>
               )}
             </Button>
