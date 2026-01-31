@@ -11,6 +11,8 @@ export interface UserSettings {
   show_weekly_trend: boolean;
   show_monthly_trend: boolean;
   marketing_opt_in: boolean;
+  onboarding_completed_at: string | null;
+  onboarding_version_seen: number;
   created_at: string;
   updated_at: string;
 }
@@ -22,6 +24,8 @@ const defaultSettings: Omit<UserSettings, 'id' | 'user_id' | 'created_at' | 'upd
   show_weekly_trend: true,
   show_monthly_trend: true,
   marketing_opt_in: false,
+  onboarding_completed_at: null,
+  onboarding_version_seen: 0,
 };
 
 export function useUserSettings() {

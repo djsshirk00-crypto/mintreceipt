@@ -7,10 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { CurrencySelector } from '@/components/settings/CurrencySelector';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useOnboardingTour } from '@/components/onboarding/OnboardingTour';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { LogOut, Palette, Settings2, LayoutDashboard, Mail, HelpCircle } from 'lucide-react';
+import { LogOut, Palette, Settings2, LayoutDashboard, Mail, HelpCircle, BookOpen } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const timeRanges = [
@@ -23,6 +24,7 @@ const timeRanges = [
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { settings, isLoading, updateSettings, isUpdating } = useUserSettings();
+  const { replayTour } = useOnboardingTour();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -190,17 +192,26 @@ export default function SettingsPage() {
             </CardTitle>
             <CardDescription>Need help? We're here for you</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              asChild
-              className="w-full sm:w-auto"
-            >
-              <a href="mailto:support@mintreceipt.app">
-                <Mail className="h-4 w-4 mr-2" />
-                Contact Support
-              </a>
-            </Button>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                onClick={replayTour}
+                className="gap-2"
+              >
+                <BookOpen className="h-4 w-4" />
+                Replay Tutorial
+              </Button>
+              <Button
+                variant="outline"
+                asChild
+              >
+                <a href="mailto:support@mintreceipt.app">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Contact Support
+                </a>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
