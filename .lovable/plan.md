@@ -1,109 +1,138 @@
 
-# Add Settings Page
 
-This plan will add a Settings tab to MintReceipt where you can customize your experience, including switching between light and dark mode, setting your preferred currency, and managing other useful preferences.
+# Recommended Mobile-First Improvements for MintReceipt
 
-## What You'll Get
-
-- A new Settings tab in the navigation menu
-- Dark/Light mode toggle that saves your preference
-- Currency preference setting (USD, EUR, GBP, CAD, etc.)
-- Default time range for spending reports
-- Option to show/hide specific dashboard sections
-- Sign out button moved to settings for cleaner nav
-
-## Implementation Steps
-
-### 1. Set Up Theme Provider
-
-Add the `next-themes` library's `ThemeProvider` to enable dark/light mode switching. The app already has dark mode CSS defined, it just needs the toggle mechanism.
-
-### 2. Create User Settings Table
-
-Create a `user_settings` table in the database to persist user preferences:
-- `user_id` (references authenticated user)
-- `theme` (light/dark/system)
-- `currency` (USD, EUR, GBP, etc.)
-- `default_time_range` (this-week, this-month, etc.)
-- `show_weekly_trend` (boolean)
-- `show_monthly_trend` (boolean)
-
-### 3. Create Settings Page
-
-Build a dedicated settings page with organized sections:
-- **Appearance**: Theme toggle (Light/Dark/System)
-- **Preferences**: Currency, default report time range
-- **Dashboard**: Toggle chart visibility
-- **Account**: Sign out button
-
-### 4. Update Navigation
-
-Add Settings link to both desktop header and mobile bottom nav, using a gear icon.
+Based on my analysis of the codebase, here are the most impactful improvements for your mobile-first receipt tracking app, organized by priority.
 
 ---
 
-## Technical Details
+## High Priority Recommendations
 
-### Files to Create
+### 1. Enhanced PWA Setup with Offline Support
 
-| File | Purpose |
-|------|---------|
-| `src/pages/SettingsPage.tsx` | Main settings page with all preference controls |
-| `src/hooks/useUserSettings.ts` | Hook to fetch/update user settings from database |
-| `src/components/settings/ThemeToggle.tsx` | Light/Dark/System mode selector |
-| `src/components/settings/CurrencySelector.tsx` | Currency preference dropdown |
+**Current State**: Basic PWA manifest exists but no service worker for offline caching or install prompts.
 
-### Files to Modify
+**Improvement**:
+- Add `vite-plugin-pwa` for automatic service worker generation
+- Enable offline access to view previously loaded receipts
+- Add install prompt banner on mobile browsers
+- Create proper PWA icons in multiple sizes (currently only 512x512)
 
-| File | Changes |
-|------|---------|
-| `src/App.tsx` | Add ThemeProvider wrapper and Settings route |
-| `src/main.tsx` | Optional: could add ThemeProvider here instead |
-| `src/components/layout/AppLayout.tsx` | Add Settings to nav items, remove Sign Out from header |
+**User Benefit**: Users can view their spending data even without internet, and get prompted to install the app directly from their browser.
 
-### Database Migration
+---
 
-```text
-user_settings table:
-- id: uuid (primary key)
-- user_id: uuid (unique, references auth user)
-- theme: text (default 'system')
-- currency: text (default 'USD')
-- default_time_range: text (default 'this-month')
-- show_weekly_trend: boolean (default true)
-- show_monthly_trend: boolean (default true)
-- created_at: timestamp
-- updated_at: timestamp
+### 2. Pull-to-Refresh on Mobile
 
-RLS policies:
-- Users can only read/write their own settings
-```
+**Current State**: Users must manually navigate away and back or wait for data to refresh.
 
-### Theme Integration Flow
+**Improvement**:
+- Add pull-to-refresh gesture on the Dashboard, Inbox, and Review pages
+- Haptic feedback when refresh triggers
+- Visual loading indicator during refresh
 
-```text
-App loads
-    |
-    v
-ThemeProvider checks localStorage/system preference
-    |
-    v
-User opens Settings
-    |
-    v
-Selects Light/Dark/System
-    |
-    v
-ThemeProvider applies class to <html> element
-    |
-    v
-CSS variables switch based on .dark class
-```
+**User Benefit**: Natural mobile interaction pattern that users expect from native apps.
 
-### Navigation Update
+---
 
-The Settings tab will be added as the last item in the navigation, using the `Settings` (gear) icon from lucide-react. The Sign Out button will be moved from the header into the Settings page under an "Account" section for a cleaner interface.
+### 3. Swipe Gestures on Receipt Cards
 
-### Currency Integration
+**Current State**: Delete requires opening a menu; no quick actions available.
 
-Once currency preference is saved, it can be used across the app to format amounts consistently. The SpendingReports component and ReceiptCard can read from the user settings hook to display the correct currency symbol.
+**Improvement**:
+- Swipe left to reveal delete action
+- Swipe right to quick-accept (on Review page)
+- Smooth animations with haptic feedback
+
+**User Benefit**: Faster receipt management without opening dialogs.
+
+---
+
+## Medium Priority Recommendations
+
+### 4. Bottom Sheet Dialogs for Mobile
+
+**Current State**: Dialogs use centered modals which can feel awkward on mobile.
+
+**Improvement**:
+- Use the existing Drawer component for dialogs on mobile
+- Review receipt dialog slides up from bottom
+- Category selection uses bottom sheet picker
+- More natural thumb-reach interaction
+
+**User Benefit**: More ergonomic mobile experience with easier one-handed use.
+
+---
+
+### 5. Quick Add Manual Transaction
+
+**Current State**: Must navigate to a full form to add manual transactions.
+
+**Improvement**:
+- Long-press on the floating camera button to show quick-add options
+- Option to "Add manually" opens simplified bottom sheet
+- Quick amount + category entry for cash purchases
+
+**User Benefit**: Faster entry for transactions without receipts.
+
+---
+
+### 6. Export & Share Receipts
+
+**Current State**: No way to export or share receipt data.
+
+**Improvement**:
+- Export spending report as PDF or CSV
+- Share individual receipts via native share sheet
+- Monthly spending summary email option
+
+**User Benefit**: Easy sharing with partners, accountants, or for personal records.
+
+---
+
+## Lower Priority (Nice to Have)
+
+### 7. Spending Notifications & Reminders
+
+**Improvement**:
+- Weekly spending summary push notification
+- Budget threshold alerts (e.g., "You've spent 80% of your grocery budget")
+- Reminder to review pending receipts
+
+---
+
+### 8. Recurring Transaction Detection
+
+**Improvement**:
+- AI identifies recurring purchases (same store, similar amount)
+- Option to auto-categorize recognized patterns
+- Monthly subscription tracking
+
+---
+
+### 9. Quick Category Filters on Dashboard
+
+**Improvement**:
+- Horizontal scrollable category chips on dashboard
+- Tap to filter recent receipts by category
+- Visual indicator of which categories have new activity
+
+---
+
+## Recommended Implementation Order
+
+| Priority | Feature | Effort | Impact |
+|----------|---------|--------|--------|
+| 1 | Enhanced PWA (offline + install) | Medium | High |
+| 2 | Pull-to-refresh | Low | High |
+| 3 | Bottom sheet dialogs | Medium | Medium |
+| 4 | Swipe gestures | Medium | Medium |
+| 5 | Quick add manual transaction | Low | Medium |
+| 6 | Export/share | Medium | Medium |
+
+---
+
+## Next Steps
+
+Let me know which improvements you'd like to implement first, and I'll create a detailed plan for that specific feature. The **Enhanced PWA setup** and **Pull-to-refresh** would provide the biggest immediate improvement to the mobile experience.
+
