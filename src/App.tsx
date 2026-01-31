@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import Dashboard from "./pages/Dashboard";
 import InboxPage from "./pages/InboxPage";
 import ReviewPage from "./pages/ReviewPage";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/settings" element={<AuthGuard><SettingsPage /></AuthGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <InstallPrompt />
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
