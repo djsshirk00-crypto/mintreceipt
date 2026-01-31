@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { OnboardingSpotlight, OnboardingStep } from './OnboardingSpotlight';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,21 +66,27 @@ const onboardingSteps: OnboardingStep[] = [
 
 export function OnboardingTour() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { settings, isLoading } = useUserSettings();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
 
-  // Only show onboarding on dashboard
   const isOnDashboard = location.pathname === '/';
 
   useEffect(() => {
-    if (isLoading || hasChecked || !isOnDashboard) return;
+    if (isLoading || hasChecked) return;
 
     // Check if user needs onboarding
     const needsOnboarding = 
       settings.onboarding_version_seen < ONBOARDING_VERSION;
 
     if (needsOnboarding && settings.user_id) {
+      // If not on dashboard, redirect there first for onboarding
+      if (!isOnDashboard) {
+        navigate('/', { replace: true });
+        return;
+      }
+      
       // Small delay to let the page render first
       const timer = setTimeout(() => {
         setShowOnboarding(true);
@@ -89,7 +95,7 @@ export function OnboardingTour() {
     }
 
     setHasChecked(true);
-  }, [settings, isLoading, hasChecked, isOnDashboard]);
+  }, [settings, isLoading, hasChecked, isOnDashboard, navigate]);
 
   const handleComplete = async () => {
     setShowOnboarding(false);
