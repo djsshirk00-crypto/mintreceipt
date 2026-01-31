@@ -2,6 +2,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Inbox, CheckSquare, Receipt, Tags, Target, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FloatingCaptureButton } from './FloatingCaptureButton';
+import { PullToRefresh } from './PullToRefresh';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -18,8 +22,15 @@ const navItems = [
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
-  return (
+  const handleRefresh = useCallback(async () => {
+    // Invalidate all queries to refresh data
+    await queryClient.invalidateQueries();
+  }, [queryClient]);
+
+  const content = (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -53,7 +64,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className="container py-6 md:py-8">
+      <main className="container py-6 md:py-8 pb-24 md:pb-8">
         {children}
       </main>
 
@@ -82,4 +93,15 @@ export function AppLayout({ children }: AppLayoutProps) {
       </nav>
     </div>
   );
+
+  // Wrap with pull-to-refresh on mobile only
+  if (isMobile) {
+    return (
+      <PullToRefresh onRefresh={handleRefresh} className="h-screen">
+        {content}
+      </PullToRefresh>
+    );
+  }
+
+  return content;
 }
