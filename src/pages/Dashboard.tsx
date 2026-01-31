@@ -73,14 +73,16 @@ export default function Dashboard() {
         </div>
 
         {/* Upload zone - mobile camera capture or desktop dropzone */}
-        {isMobile ? (
-          <MobileCameraCapture />
-        ) : (
-          <ReceiptUploader />
-        )}
+        <div data-onboarding="upload-zone">
+          {isMobile ? (
+            <MobileCameraCapture />
+          ) : (
+            <ReceiptUploader />
+          )}
+        </div>
 
         {/* Status cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div data-onboarding="status-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link to="/inbox">
             <Card className="hover:shadow-medium transition-shadow cursor-pointer">
               <CardContent className="p-5 flex items-center gap-4">
@@ -129,7 +131,9 @@ export default function Dashboard() {
         </div>
 
         {/* Spending Reports with dynamic categories */}
-        <SpendingReports />
+        <div data-onboarding="spending-reports">
+          <SpendingReports />
+        </div>
 
         {/* Recent receipts */}
         <section>

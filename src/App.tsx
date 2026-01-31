@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import Dashboard from "./pages/Dashboard";
 import InboxPage from "./pages/InboxPage";
 import ReviewPage from "./pages/ReviewPage";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           <InstallPrompt />
+          <OnboardingTour />
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

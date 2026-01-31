@@ -273,6 +273,8 @@ export type Database = {
           default_time_range: string
           id: string
           marketing_opt_in: boolean
+          onboarding_completed_at: string | null
+          onboarding_version_seen: number
           show_monthly_trend: boolean
           show_weekly_trend: boolean
           theme: string
@@ -285,6 +287,8 @@ export type Database = {
           default_time_range?: string
           id?: string
           marketing_opt_in?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_version_seen?: number
           show_monthly_trend?: boolean
           show_weekly_trend?: boolean
           theme?: string
@@ -297,6 +301,8 @@ export type Database = {
           default_time_range?: string
           id?: string
           marketing_opt_in?: boolean
+          onboarding_completed_at?: string | null
+          onboarding_version_seen?: number
           show_monthly_trend?: boolean
           show_weekly_trend?: boolean
           theme?: string
