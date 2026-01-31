@@ -48,15 +48,15 @@ export function SpendingReports() {
     <div className="space-y-6">
       {/* Time Period Selector */}
       <Tabs value={timeRange} onValueChange={(v) => setTimeRange(v as TimeRange)}>
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-col gap-4 overflow-hidden">
           <h2 className="text-xl font-semibold text-foreground">Spending Reports</h2>
-        <TabsList className="flex-wrap h-auto">
-            <TabsTrigger value="this-week">This Week</TabsTrigger>
-            <TabsTrigger value="last-week">Last Week</TabsTrigger>
-            <TabsTrigger value="this-month">This Month</TabsTrigger>
-            <TabsTrigger value="last-month">Last Month</TabsTrigger>
-            <TabsTrigger value="all-time">All Time</TabsTrigger>
-            <TabsTrigger value="custom">Custom</TabsTrigger>
+          <TabsList className="flex flex-wrap h-auto gap-1 w-full">
+            <TabsTrigger value="this-week" className="text-xs px-2 py-1.5">This Week</TabsTrigger>
+            <TabsTrigger value="last-week" className="text-xs px-2 py-1.5">Last Week</TabsTrigger>
+            <TabsTrigger value="this-month" className="text-xs px-2 py-1.5">This Month</TabsTrigger>
+            <TabsTrigger value="last-month" className="text-xs px-2 py-1.5">Last Month</TabsTrigger>
+            <TabsTrigger value="all-time" className="text-xs px-2 py-1.5">All Time</TabsTrigger>
+            <TabsTrigger value="custom" className="text-xs px-2 py-1.5">Custom</TabsTrigger>
           </TabsList>
         </div>
 
