@@ -30,10 +30,32 @@ export function AppLayout({ children }: AppLayoutProps) {
     await queryClient.invalidateQueries();
   }, [queryClient]);
 
-  const content = (
+  const MobileNav = () => (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
+      <div className="flex items-center justify-around h-16 pb-safe">
+        {navItems.map(({ path, label, icon: Icon }) => (
+          <Link
+            key={path}
+            to={path}
+            className={cn(
+              'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors touch-target',
+              location.pathname === path
+                ? 'text-primary'
+                : 'text-muted-foreground'
+            )}
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+
+  const mainContent = (
     <div className="min-h-screen bg-background overflow-x-hidden w-full max-w-full">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -67,41 +89,27 @@ export function AppLayout({ children }: AppLayoutProps) {
       <main className="container py-6 md:py-8 pb-24 md:pb-8">
         {children}
       </main>
-
-      {/* Floating Action Button for mobile camera capture */}
-      <FloatingCaptureButton />
-
-      {/* Mobile bottom nav - always visible */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
-        <div className="flex items-center justify-around h-16 pb-safe">
-          {navItems.map(({ path, label, icon: Icon }) => (
-            <Link
-              key={path}
-              to={path}
-              className={cn(
-                'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors touch-target',
-                location.pathname === path
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              {label}
-            </Link>
-          ))}
-        </div>
-      </nav>
     </div>
   );
 
-  // Wrap with pull-to-refresh on mobile only
+  // Mobile layout with nav outside PullToRefresh to keep it fixed
   if (isMobile) {
     return (
-      <PullToRefresh onRefresh={handleRefresh} className="h-screen">
-        {content}
-      </PullToRefresh>
+      <>
+        <PullToRefresh onRefresh={handleRefresh} className="h-screen">
+          {mainContent}
+        </PullToRefresh>
+        <FloatingCaptureButton />
+        <MobileNav />
+      </>
     );
   }
 
-  return content;
+  // Desktop layout
+  return (
+    <>
+      {mainContent}
+      <FloatingCaptureButton />
+    </>
+  );
 }
