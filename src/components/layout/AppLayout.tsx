@@ -1,10 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Inbox, CheckSquare, LogOut, Receipt, Tags, Target } from 'lucide-react';
+import { Home, Inbox, CheckSquare, Receipt, Tags, Target, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 import { FloatingCaptureButton } from './FloatingCaptureButton';
 
 interface AppLayoutProps {
@@ -17,17 +13,11 @@ const navItems = [
   { path: '/review', label: 'Review', icon: CheckSquare },
   { path: '/budget', label: 'Budget', icon: Target },
   { path: '/categories', label: 'Categories', icon: Tags },
+  { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success('Signed out successfully');
-    navigate('/auth');
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,16 +49,6 @@ export function AppLayout({ children }: AppLayoutProps) {
               </Link>
             ))}
           </nav>
-
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleSignOut}
-            className="text-muted-foreground"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
         </div>
       </header>
 
