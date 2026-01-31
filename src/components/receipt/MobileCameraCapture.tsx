@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
-import { Camera, Loader2, X, RotateCcw, Check } from 'lucide-react';
+import { Camera, Image, Loader2, X, RotateCcw, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUploadReceipt } from '@/hooks/useReceipts';
 import { toast } from 'sonner';
@@ -14,7 +14,8 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
   const [capturedFile, setCapturedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const uploadReceipt = useUploadReceipt();
   const navigate = useNavigate();
 
@@ -33,11 +34,9 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
     }
     setCapturedFile(null);
     setPreviewUrl(null);
-    // Reset and trigger file input again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-      fileInputRef.current.click();
-    }
+    // Reset inputs
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
   }, [previewUrl]);
 
   const handleUsePhoto = useCallback(async () => {
@@ -78,7 +77,11 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
   }, [previewUrl, onClose]);
 
   const openCamera = useCallback(() => {
-    fileInputRef.current?.click();
+    cameraInputRef.current?.click();
+  }, []);
+
+  const openGallery = useCallback(() => {
+    galleryInputRef.current?.click();
   }, []);
 
   // If we have a preview, show the preview screen
@@ -141,11 +144,12 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
     );
   }
 
-  // Initial state - show camera trigger
+  // Initial state - show camera and gallery options
   return (
     <>
+      {/* Camera input - triggers device camera */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -153,23 +157,54 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
         className="hidden"
       />
       
-      <button
-        onClick={openCamera}
-        className={cn(
-          'w-full flex flex-col items-center justify-center gap-3 p-8',
-          'rounded-xl border-2 border-dashed border-primary/30',
-          'bg-primary/5 hover:bg-primary/10 transition-colors',
-          'cursor-pointer touch-target'
-        )}
-      >
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Camera className="h-8 w-8" />
-        </div>
-        <div className="text-center">
-          <p className="font-semibold text-foreground">Snap Receipt</p>
-          <p className="text-sm text-muted-foreground">Tap to open camera</p>
-        </div>
-      </button>
+      {/* Gallery input - opens photo library / files */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      
+      <div className="grid grid-cols-2 gap-3">
+        {/* Camera button */}
+        <button
+          onClick={openCamera}
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 p-6',
+            'rounded-xl border-2 border-dashed border-primary/30',
+            'bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors',
+            'cursor-pointer touch-target'
+          )}
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <Camera className="h-6 w-6" />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-foreground text-sm">Take Photo</p>
+            <p className="text-xs text-muted-foreground">Use camera</p>
+          </div>
+        </button>
+
+        {/* Gallery/Screenshot button */}
+        <button
+          onClick={openGallery}
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 p-6',
+            'rounded-xl border-2 border-dashed border-muted-foreground/30',
+            'bg-muted/30 hover:bg-muted/50 active:bg-muted/70 transition-colors',
+            'cursor-pointer touch-target'
+          )}
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Image className="h-6 w-6" />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-foreground text-sm">Upload</p>
+            <p className="text-xs text-muted-foreground">Screenshot or PDF</p>
+          </div>
+        </button>
+      </div>
     </>
   );
 }
