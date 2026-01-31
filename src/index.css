@@ -277,9 +277,20 @@
     padding-top: env(safe-area-inset-top, 0px);
   }
 
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   /* Touch-friendly targets (44px minimum) */
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
+  }
+}
+
+/* Ensure fixed bottom nav stays visible on iOS */
+@supports (-webkit-touch-callout: none) {
+  .safe-area-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
   }
 }
 
