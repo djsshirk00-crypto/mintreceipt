@@ -266,6 +266,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          currency: string
+          default_time_range: string
+          id: string
+          show_monthly_trend: boolean
+          show_weekly_trend: boolean
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          default_time_range?: string
+          id?: string
+          show_monthly_trend?: boolean
+          show_weekly_trend?: boolean
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          default_time_range?: string
+          id?: string
+          show_monthly_trend?: boolean
+          show_weekly_trend?: boolean
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
