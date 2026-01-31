@@ -1,20 +1,20 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { useCategories, useCategoriesWithHierarchy, useCreateCategory, useUpdateCategory, useDeleteCategory, Category } from '@/hooks/useCategories';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCategories, useCategoriesWithHierarchy, useCreateCategory, useUpdateCategory, useDeleteCategory, useInitializeCategories, Category } from '@/hooks/useCategories';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Trash2, ChevronRight, Lock } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronRight, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
 
 const EMOJI_OPTIONS = ['📦', '🍕', '🏠', '👕', '🎬', '💊', '🚗', '🎮', '📱', '💼', '🎁', '✈️', '🏋️', '📚', '🐕', '🌿', '🔧', '💡', '💰', '📥'];
 const INCOME_EMOJI_OPTIONS = ['💰', '💵', '💼', '📥', '🏦', '📈', '💸', '🎯'];
 
 export default function CategoriesPage() {
+  const { isInitializing, isInitialized } = useInitializeCategories();
   const { data: hierarchyData, isLoading } = useCategoriesWithHierarchy();
   const { data: allCategories } = useCategories();
   const createCategory = useCreateCategory();
@@ -80,6 +80,27 @@ export default function CategoriesPage() {
     setDeleteConfirm(null);
   };
 
+  // Show loading state while initializing categories
+  if (isInitializing || !isInitialized) {
+    return (
+      <AppLayout>
+        <div className="space-y-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Categories</h1>
+              <p className="text-muted-foreground mt-1">
+                Setting up your categories...
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-8">
@@ -125,36 +146,24 @@ export default function CategoriesPage() {
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{category.icon}</span>
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">{category.name}</span>
-                              {category.is_system && (
-                                <Badge variant="secondary" className="text-xs gap-1">
-                                  <Lock className="h-3 w-3" />
-                                  System
-                                </Badge>
-                              )}
-                            </div>
+                            <span className="font-semibold">{category.name}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {!category.is_system && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleOpenEdit(category)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteConfirm(category)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEdit(category)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteConfirm(category)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -168,97 +177,95 @@ export default function CategoriesPage() {
               <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
                 🏷️ Expense Categories
               </h2>
-              {expenseCategories.map(category => (
-                <Card key={category.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{category.icon}</span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{category.name}</span>
-                            {category.is_system && (
-                              <Badge variant="secondary" className="text-xs gap-1">
-                                <Lock className="h-3 w-3" />
-                                System
-                              </Badge>
-                            )}
-                          </div>
-                          {category.children.length > 0 && (
-                            <p className="text-sm text-muted-foreground">
-                              {category.children.length} subcategories
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenCreate(category.id, 'expense')}
-                        >
-                          <Plus className="h-4 w-4" />
-                          Subcategory
-                        </Button>
-                        {!category.is_system && (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(category)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteConfirm(category)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Subcategories */}
-                    {category.children.length > 0 && (
-                      <div className="mt-4 ml-8 space-y-2">
-                        {category.children.map(sub => (
-                          <div 
-                            key={sub.id}
-                            className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
-                          >
-                            <div className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-lg">{sub.icon}</span>
-                              <span>{sub.name}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleOpenEdit(sub)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => setDeleteConfirm(sub)}
-                              >
-                                <Trash2 className="h-3 w-3 text-destructive" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+              {expenseCategories.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">
+                      No expense categories yet. Add your first one!
+                    </p>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                expenseCategories.map(category => (
+                  <Card key={category.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{category.icon}</span>
+                          <div>
+                            <span className="font-semibold">{category.name}</span>
+                            {category.children.length > 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                {category.children.length} subcategories
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenCreate(category.id, 'expense')}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Subcategory
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEdit(category)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteConfirm(category)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Subcategories */}
+                      {category.children.length > 0 && (
+                        <div className="mt-4 ml-8 space-y-2">
+                          {category.children.map(sub => (
+                            <div 
+                              key={sub.id}
+                              className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                            >
+                              <div className="flex items-center gap-2">
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-lg">{sub.icon}</span>
+                                <span>{sub.name}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleOpenEdit(sub)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => setDeleteConfirm(sub)}
+                                >
+                                  <Trash2 className="h-3 w-3 text-destructive" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         )}
