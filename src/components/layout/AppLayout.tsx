@@ -71,9 +71,9 @@ export function AppLayout({ children }: AppLayoutProps) {
       {/* Floating Action Button for mobile camera capture */}
       <FloatingCaptureButton />
 
-      {/* Mobile bottom nav */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background md:hidden pb-safe">
-        <div className="flex items-center justify-around h-16">
+      {/* Mobile bottom nav - always visible */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
+        <div className="flex items-center justify-around h-16 pb-safe">
           {navItems.map(({ path, label, icon: Icon }) => (
             <Link
               key={path}
