@@ -31,8 +31,10 @@ export function OnboardingSpotlight({
 }: OnboardingSpotlightProps) {
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [targetFound, setTargetFound] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [highlightVisible, setHighlightVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
 
@@ -40,31 +42,60 @@ export function OnboardingSpotlight({
   const isLastStep = currentStep === steps.length - 1;
   const isFirstStep = currentStep === 0;
 
-  // Find and measure target element, scroll into view
-  const updateTargetRect = useCallback(() => {
+  // Find and measure target element with proper validation and timing
+  const updateTargetRect = useCallback(async () => {
+    setHighlightVisible(false);
+    
     if (!step?.targetSelector) {
       setTargetRect(null);
+      setTargetFound(false);
       return;
     }
 
+    // Wait for layout to settle
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     const element = document.querySelector(step.targetSelector);
-    if (element) {
-      // Scroll target into view on mobile
-      if (isMobile) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Wait for scroll to complete before measuring
-        setTimeout(() => {
-          const rect = element.getBoundingClientRect();
-          setTargetRect(rect);
-        }, 300);
-      } else {
-        const rect = element.getBoundingClientRect();
-        setTargetRect(rect);
-      }
-    } else {
+    
+    if (!element) {
+      console.warn('Tour target not found', { stepId: step.id, targetSelector: step.targetSelector });
       setTargetRect(null);
+      setTargetFound(false);
+      return;
     }
-  }, [step?.targetSelector, isMobile]);
+
+    setTargetFound(true);
+
+    // Scroll target into view
+    element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+
+    // Wait for scroll to complete, then use double RAF for accurate measurement
+    await new Promise(resolve => setTimeout(resolve, 350));
+    
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const rect = element.getBoundingClientRect();
+        
+        // Validate rect is actually visible in viewport
+        const isVisible = 
+          rect.top >= -rect.height && 
+          rect.left >= -rect.width && 
+          rect.bottom <= window.innerHeight + rect.height &&
+          rect.right <= window.innerWidth + rect.width &&
+          rect.width > 0 && 
+          rect.height > 0;
+
+        if (isVisible) {
+          setTargetRect(rect);
+          setHighlightVisible(true);
+        } else {
+          console.warn('Tour target not visible in viewport', { stepId: step.id, rect });
+          setTargetRect(null);
+          setHighlightVisible(false);
+        }
+      });
+    });
+  }, [step?.targetSelector, step?.id]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -83,12 +114,17 @@ export function OnboardingSpotlight({
 
     updateTargetRect();
 
-    window.addEventListener('resize', updateTargetRect);
-    window.addEventListener('scroll', updateTargetRect, true);
+    const handleResize = () => {
+      // Re-measure on resize with debounce
+      setTimeout(updateTargetRect, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
 
     return () => {
-      window.removeEventListener('resize', updateTargetRect);
-      window.removeEventListener('scroll', updateTargetRect, true);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
     };
   }, [isOpen, updateTargetRect, currentStep]);
 
@@ -97,6 +133,7 @@ export function OnboardingSpotlight({
       onComplete();
     } else {
       setIsAnimating(true);
+      setHighlightVisible(false);
       setTimeout(() => {
         setCurrentStep((prev) => prev + 1);
         setIsAnimating(false);
@@ -107,6 +144,7 @@ export function OnboardingSpotlight({
   const handleBack = useCallback(() => {
     if (!isFirstStep) {
       setIsAnimating(true);
+      setHighlightVisible(false);
       setTimeout(() => {
         setCurrentStep((prev) => prev - 1);
         setIsAnimating(false);
@@ -141,6 +179,14 @@ export function OnboardingSpotlight({
   };
 
   if (!isOpen) return null;
+
+  // Generate description with fallback for missing targets
+  const getStepDescription = () => {
+    if (step.targetSelector && !targetFound) {
+      return `${step.description}\n\nTap Next to continue.`;
+    }
+    return step.description;
+  };
 
   // Desktop tooltip positioning (unchanged from before)
   const getDesktopTooltipStyle = (): React.CSSProperties => {
@@ -243,8 +289,8 @@ export function OnboardingSpotlight({
           <h3 className="text-xl font-semibold text-foreground pr-10">
             {step.title}
           </h3>
-          <p className="text-base text-muted-foreground leading-relaxed">
-            {step.description}
+          <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
+            {getStepDescription()}
           </p>
         </div>
 
@@ -272,6 +318,7 @@ export function OnboardingSpotlight({
                 onClick={() => {
                   if (index !== currentStep) {
                     setIsAnimating(true);
+                    setHighlightVisible(false);
                     setTimeout(() => {
                       setCurrentStep(index);
                       setIsAnimating(false);
@@ -400,6 +447,66 @@ export function OnboardingSpotlight({
     </div>
   );
 
+  // Render highlight ring - fixed position, appended to body via portal
+  const HighlightRing = () => {
+    if (!targetRect || !highlightVisible) return null;
+
+    const padding = 10;
+    
+    return (
+      <div
+        className="fixed pointer-events-none"
+        style={{
+          top: targetRect.top - padding,
+          left: targetRect.left - padding,
+          width: targetRect.width + padding * 2,
+          height: targetRect.height + padding * 2,
+          zIndex: 105,
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Outer glow */}
+        <div 
+          className="absolute inset-0 rounded-xl"
+          style={{
+            boxShadow: '0 0 0 4px hsl(var(--primary) / 0.3), 0 0 20px 8px hsl(var(--primary) / 0.2)',
+          }}
+        />
+        {/* Border ring with pulse animation */}
+        <div 
+          className="absolute inset-0 rounded-xl border-2 border-primary animate-pulse"
+        />
+        {/* Inner highlight */}
+        <div 
+          className="absolute inset-1 rounded-lg"
+          style={{
+            background: 'hsl(var(--primary) / 0.05)',
+          }}
+        />
+      </div>
+    );
+  };
+
+  // Mobile highlight indicator that appears near the target
+  const MobileHighlightIndicator = () => {
+    if (!highlightVisible || !targetRect || !isMobile) return null;
+
+    return (
+      <div 
+        className="fixed left-4 right-4 p-3 bg-card/95 backdrop-blur-sm rounded-xl border border-border flex items-center gap-3 shadow-lg"
+        style={{ 
+          zIndex: 106,
+          top: Math.min(targetRect.bottom + 16, window.innerHeight - 180),
+        }}
+      >
+        <div className="w-3 h-3 rounded-full bg-primary animate-pulse flex-shrink-0" />
+        <span className="text-sm text-muted-foreground">
+          Look at the highlighted element above
+        </span>
+      </div>
+    );
+  };
+
   const content = (
     <div 
       ref={containerRef}
@@ -409,22 +516,22 @@ export function OnboardingSpotlight({
         touchAction: 'none',
       }}
     >
-      {/* Overlay with optional spotlight cutout */}
+      {/* Overlay backdrop */}
       <div 
         className="absolute inset-0"
         onClick={(e) => e.stopPropagation()}
       >
-        {targetRect && !isMobile ? (
-          // Desktop: SVG spotlight
+        {targetRect && highlightVisible && !isMobile ? (
+          // Desktop: SVG spotlight with cutout
           <svg className="absolute inset-0 w-full h-full pointer-events-none">
             <defs>
               <mask id="spotlight-mask">
                 <rect x="0" y="0" width="100%" height="100%" fill="white" />
                 <rect
-                  x={targetRect.left - 8}
-                  y={targetRect.top - 8}
-                  width={targetRect.width + 16}
-                  height={targetRect.height + 16}
+                  x={targetRect.left - 10}
+                  y={targetRect.top - 10}
+                  width={targetRect.width + 20}
+                  height={targetRect.height + 20}
                   rx="12"
                   fill="black"
                 />
@@ -440,8 +547,34 @@ export function OnboardingSpotlight({
               style={{ pointerEvents: 'auto' }}
             />
           </svg>
+        ) : targetRect && highlightVisible && isMobile ? (
+          // Mobile: SVG spotlight with cutout for target
+          <svg className="absolute inset-0 w-full h-full pointer-events-none">
+            <defs>
+              <mask id="mobile-spotlight-mask">
+                <rect x="0" y="0" width="100%" height="100%" fill="white" />
+                <rect
+                  x={targetRect.left - 10}
+                  y={targetRect.top - 10}
+                  width={targetRect.width + 20}
+                  height={targetRect.height + 20}
+                  rx="12"
+                  fill="black"
+                />
+              </mask>
+            </defs>
+            <rect
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              fill="rgba(0, 0, 0, 0.75)"
+              mask="url(#mobile-spotlight-mask)"
+              style={{ pointerEvents: 'auto' }}
+            />
+          </svg>
         ) : (
-          // Mobile: Simple overlay (no cutout to avoid layout issues)
+          // No target or not visible: simple overlay
           <div 
             className="absolute inset-0 bg-black/80"
             style={{ pointerEvents: 'auto' }}
@@ -449,32 +582,11 @@ export function OnboardingSpotlight({
         )}
       </div>
 
-      {/* Highlight ring around target (only on desktop or when target is visible) */}
-      {targetRect && !isMobile && (
-        <div
-          className="absolute border-2 border-primary rounded-xl pointer-events-none animate-pulse"
-          style={{
-            top: targetRect.top - 8,
-            left: targetRect.left - 8,
-            width: targetRect.width + 16,
-            height: targetRect.height + 16,
-            zIndex: 105,
-          }}
-        />
-      )}
+      {/* Highlight ring around target - rendered via fixed positioning */}
+      <HighlightRing />
 
-      {/* Mobile highlight (subtle indicator at top) */}
-      {targetRect && isMobile && (
-        <div 
-          className="absolute left-4 right-4 top-4 p-3 bg-card/90 backdrop-blur-sm rounded-xl border border-border flex items-center gap-3"
-          style={{ zIndex: 105 }}
-        >
-          <div className="w-3 h-3 rounded-full bg-primary animate-pulse flex-shrink-0" />
-          <span className="text-sm text-muted-foreground truncate">
-            Look for the highlighted element above
-          </span>
-        </div>
-      )}
+      {/* Mobile indicator showing where to look - only when highlight is visible */}
+      <MobileHighlightIndicator />
 
       {/* Tooltip or Bottom Sheet based on device */}
       {isMobile ? <MobileBottomSheet /> : <DesktopTooltip />}
