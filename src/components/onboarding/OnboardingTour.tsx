@@ -142,21 +142,27 @@ export function OnboardingTour() {
 
 // Hook to manually trigger onboarding (for Settings replay)
 export function useOnboardingTour() {
-  const { settings } = useUserSettings();
-
   const replayTour = async () => {
-    if (settings.user_id) {
+    // Get current user directly to ensure we have the ID
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user?.id) {
       // Reset onboarding version to trigger tour
-      await supabase
+      const { error } = await supabase
         .from('user_settings')
         .update({
           onboarding_version_seen: 0,
           onboarding_completed_at: null,
         })
-        .eq('user_id', settings.user_id);
+        .eq('user_id', user.id);
 
-      // Reload to trigger tour
-      window.location.href = '/';
+      if (error) {
+        console.error('Failed to reset onboarding:', error);
+        return;
+      }
+
+      // Use window.location.replace for a clean navigation that resets React state
+      window.location.replace('/');
     }
   };
 
