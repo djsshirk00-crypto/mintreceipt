@@ -1,6 +1,6 @@
 import { ReceiptStatus } from '@/types/receipt';
 import { cn } from '@/lib/utils';
-import { Loader2, CheckCircle2, AlertCircle, Inbox, Eye } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
 
 interface StatusBadgeProps {
   status: ReceiptStatus;
@@ -12,11 +12,6 @@ const statusConfig: Record<ReceiptStatus, {
   className: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = {
-  inbox: { 
-    label: 'Inbox', 
-    className: 'status-inbox',
-    icon: Inbox,
-  },
   processing: { 
     label: 'Processing', 
     className: 'bg-info/20 text-info',

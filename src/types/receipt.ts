@@ -1,4 +1,4 @@
-export type ReceiptStatus = 'inbox' | 'processing' | 'processed' | 'failed' | 'reviewed';
+export type ReceiptStatus = 'processing' | 'processed' | 'failed' | 'reviewed';
 
 export type Category = 'groceries' | 'household' | 'clothing' | 'other';
 

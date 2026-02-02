@@ -1,13 +1,11 @@
-import { useState } from 'react';
-import { useReceipts, useReceiptStats, useProcessReceipt } from '@/hooks/useReceipts';
+import { useReceipts, useReceiptStats } from '@/hooks/useReceipts';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptUploader } from '@/components/receipt/ReceiptUploader';
 import { MobileCameraCapture } from '@/components/receipt/MobileCameraCapture';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
 import { SpendingReports } from '@/components/receipt/SpendingReports';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckSquare, AlertCircle, RefreshCw, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckSquare, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -15,25 +13,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 export default function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useReceiptStats();
   const { data: recentReceipts, isLoading: receiptsLoading } = useReceipts();
-  const processReceipt = useProcessReceipt();
-  const [isProcessing, setIsProcessing] = useState(false);
   const isMobile = useIsMobile();
-
-  const handleProcessAll = async () => {
-    if (!recentReceipts) return;
-    
-    const inboxReceipts = recentReceipts.filter(r => r.status === 'inbox');
-    if (inboxReceipts.length === 0) return;
-
-    setIsProcessing(true);
-    try {
-      for (const receipt of inboxReceipts) {
-        await processReceipt.mutateAsync(receipt.id);
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const processingCount = stats?.statusCounts.processing || 0;
   const processedCount = stats?.statusCounts.processed || 0;
@@ -51,26 +31,6 @@ export default function Dashboard() {
               Drop your receipts and we'll handle the rest.
             </p>
           </div>
-          
-          {processingCount > 0 && (
-            <Button 
-              onClick={handleProcessAll}
-              disabled={isProcessing}
-              className="w-full md:w-auto"
-            >
-              {isProcessing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Process {processingCount} Receipt{processingCount !== 1 ? 's' : ''}
-                </>
-              )}
-            </Button>
-          )}
         </div>
 
         {/* Upload zone - mobile camera capture or desktop dropzone */}

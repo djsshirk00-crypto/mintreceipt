@@ -61,7 +61,7 @@ function transformRow(row: ReceiptRow): Receipt {
   return {
     ...row,
     currency: row.currency || 'USD',
-    status: (row.status as ReceiptStatus) || 'inbox',
+    status: (row.status as ReceiptStatus) || 'processing',
     groceries_amount: row.groceries_amount || 0,
     household_amount: row.household_amount || 0,
     clothing_amount: row.clothing_amount || 0,
@@ -122,7 +122,6 @@ export function useReceiptStats() {
       const receipts = (data as ReceiptRow[]).map(transformRow);
       
       const statusCounts = {
-        inbox: 0,
         processing: 0,
         processed: 0,
         failed: 0,
