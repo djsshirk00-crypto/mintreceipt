@@ -25,8 +25,7 @@ const desktopNavItems = [
   { path: '/', label: 'Dashboard', icon: Home },
   { path: '/transactions', label: 'Transactions', icon: Receipt },
   { path: '/review', label: 'Review', icon: CheckSquare },
-  { path: '/categories', label: 'Categories' },
-  { path: '/budget', label: 'Budget' },
+  { path: '/budget', label: 'Budget & Categories' },
   { path: '/settings', label: 'Settings' },
 ];
 

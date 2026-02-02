@@ -1,18 +1,25 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { BudgetManager } from '@/components/budget/BudgetManager';
+import { BudgetCategoriesManager } from '@/components/budget/BudgetCategoriesManager';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function BudgetPage() {
+  const isMobile = useIsMobile();
+  
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Budget</h1>
-          <p className="text-muted-foreground mt-1">
-            Set and track your zero-based budget for each category.
-          </p>
+          <h1 className={isMobile ? "text-2xl font-bold text-foreground" : "text-3xl font-bold text-foreground"}>
+            Budget & Categories
+          </h1>
+          {!isMobile && (
+            <p className="text-muted-foreground mt-1">
+              Set budgets and manage your income and expense categories.
+            </p>
+          )}
         </div>
         
-        <BudgetManager />
+        <BudgetCategoriesManager />
       </div>
     </AppLayout>
   );
