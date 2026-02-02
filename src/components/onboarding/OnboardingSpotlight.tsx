@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface OnboardingStep {
   id: string;
@@ -12,6 +13,8 @@ export interface OnboardingStep {
   targetSelector?: string;
   position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
   icon?: string;
+  /** Route where the target element lives (e.g., '/', '/review') */
+  targetRoute?: string;
 }
 
 interface OnboardingSpotlightProps {
@@ -21,6 +24,12 @@ interface OnboardingSpotlightProps {
   onSkip: () => void;
   currentStep?: number;
 }
+
+// Debug mode query param
+const isDebugMode = () => {
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('tourDebug') === '1';
+};
 
 export function OnboardingSpotlight({
   steps,
@@ -32,19 +41,37 @@ export function OnboardingSpotlight({
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [targetFound, setTargetFound] = useState(false);
+  const [targetError, setTargetError] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [highlightVisible, setHighlightVisible] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{ selector: string; rect: DOMRect | null; route: string } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const debug = isDebugMode();
 
   const step = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
   const isFirstStep = currentStep === 0;
 
+  // Wait for double RAF for layout stability
+  const waitForLayout = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      });
+    });
+  }, []);
+
   // Find and measure target element with proper validation and timing
   const updateTargetRect = useCallback(async () => {
     setHighlightVisible(false);
+    setTargetError(null);
+    setDebugInfo(null);
     
     if (!step?.targetSelector) {
       setTargetRect(null);
@@ -52,50 +79,77 @@ export function OnboardingSpotlight({
       return;
     }
 
-    // Wait for layout to settle
+    // Check if we need to navigate to a different route first
+    if (step.targetRoute && location.pathname !== step.targetRoute) {
+      navigate(step.targetRoute, { replace: true });
+      // Wait for navigation and render
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // Wait for layout to settle (double RAF)
+    await waitForLayout();
     await new Promise(resolve => setTimeout(resolve, 100));
 
     const element = document.querySelector(step.targetSelector);
     
     if (!element) {
-      console.warn('Tour target not found', { stepId: step.id, targetSelector: step.targetSelector });
+      const errorMsg = `Target not found: ${step.targetSelector}`;
+      console.warn('Onboarding target not found', { stepId: step.id, targetSelector: step.targetSelector, step });
       setTargetRect(null);
       setTargetFound(false);
+      setTargetError(errorMsg);
+      
+      if (debug) {
+        setDebugInfo({ 
+          selector: step.targetSelector, 
+          rect: null, 
+          route: location.pathname 
+        });
+      }
       return;
     }
 
     setTargetFound(true);
+    setTargetError(null);
 
     // Scroll target into view
     element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
 
-    // Wait for scroll to complete, then use double RAF for accurate measurement
+    // Wait for scroll to complete
     await new Promise(resolve => setTimeout(resolve, 350));
     
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const rect = element.getBoundingClientRect();
-        
-        // Validate rect is actually visible in viewport
-        const isVisible = 
-          rect.top >= -rect.height && 
-          rect.left >= -rect.width && 
-          rect.bottom <= window.innerHeight + rect.height &&
-          rect.right <= window.innerWidth + rect.width &&
-          rect.width > 0 && 
-          rect.height > 0;
+    // Double RAF for accurate measurement after scroll
+    await waitForLayout();
 
-        if (isVisible) {
-          setTargetRect(rect);
-          setHighlightVisible(true);
-        } else {
-          console.warn('Tour target not visible in viewport', { stepId: step.id, rect });
-          setTargetRect(null);
-          setHighlightVisible(false);
-        }
+    const rect = element.getBoundingClientRect();
+    
+    // Validate rect is actually visible in viewport
+    const isVisible = 
+      rect.top >= -rect.height && 
+      rect.left >= -rect.width && 
+      rect.bottom <= window.innerHeight + rect.height &&
+      rect.right <= window.innerWidth + rect.width &&
+      rect.width > 0 && 
+      rect.height > 0;
+
+    if (debug) {
+      setDebugInfo({ 
+        selector: step.targetSelector, 
+        rect: rect, 
+        route: location.pathname 
       });
-    });
-  }, [step?.targetSelector, step?.id]);
+    }
+
+    if (isVisible) {
+      setTargetRect(rect);
+      setHighlightVisible(true);
+    } else {
+      console.warn('Tour target not visible in viewport', { stepId: step.id, rect });
+      setTargetRect(null);
+      setHighlightVisible(false);
+      setTargetError(`Target exists but not visible in viewport`);
+    }
+  }, [step?.targetSelector, step?.id, step?.targetRoute, location.pathname, navigate, waitForLayout, debug]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -109,13 +163,13 @@ export function OnboardingSpotlight({
     }
   }, [isOpen]);
 
+  // Update target rect when step changes or viewport changes
   useEffect(() => {
     if (!isOpen) return;
 
     updateTargetRect();
 
     const handleResize = () => {
-      // Re-measure on resize with debounce
       setTimeout(updateTargetRect, 100);
     };
 
@@ -180,15 +234,7 @@ export function OnboardingSpotlight({
 
   if (!isOpen) return null;
 
-  // Generate description with fallback for missing targets
-  const getStepDescription = () => {
-    if (step.targetSelector && !targetFound) {
-      return `${step.description}\n\nTap Next to continue.`;
-    }
-    return step.description;
-  };
-
-  // Desktop tooltip positioning (unchanged from before)
+  // Desktop tooltip positioning
   const getDesktopTooltipStyle = (): React.CSSProperties => {
     const padding = 16;
     const tooltipWidth = 320;
@@ -242,11 +288,40 @@ export function OnboardingSpotlight({
     return { top, left, transform, width: tooltipWidth };
   };
 
+  // Debug panel component
+  const DebugPanel = () => {
+    if (!debug) return null;
+    
+    return (
+      <div 
+        className="fixed top-4 left-4 right-4 z-[200] p-3 bg-black/90 text-white text-xs font-mono rounded-lg"
+        style={{ maxWidth: '400px' }}
+      >
+        <div className="font-bold text-yellow-400 mb-2">🐛 Tour Debug Mode</div>
+        <div>Step: {currentStep + 1}/{steps.length} ({step.id})</div>
+        <div>Route: {location.pathname}</div>
+        <div>Selector: {step.targetSelector || 'none'}</div>
+        {debugInfo?.rect && (
+          <div className="mt-1 text-green-400">
+            Rect: top={Math.round(debugInfo.rect.top)}, left={Math.round(debugInfo.rect.left)}, 
+            w={Math.round(debugInfo.rect.width)}, h={Math.round(debugInfo.rect.height)}
+          </div>
+        )}
+        {targetError && (
+          <div className="mt-1 text-red-400">Error: {targetError}</div>
+        )}
+        <div className="mt-1">
+          Target found: {targetFound ? '✅' : '❌'} | Highlight visible: {highlightVisible ? '✅' : '❌'}
+        </div>
+      </div>
+    );
+  };
+
   // Mobile bottom sheet content
   const MobileBottomSheet = () => (
     <div
       className={cn(
-        "fixed bottom-0 left-0 right-0 z-[110]",
+        "fixed bottom-0 left-0 right-0 z-[60]",
         "bg-card border-t border-border rounded-t-3xl shadow-elevated",
         "transition-all duration-200 ease-out",
         isAnimating ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'
@@ -290,8 +365,19 @@ export function OnboardingSpotlight({
             {step.title}
           </h3>
           <p className="text-base text-muted-foreground leading-relaxed whitespace-pre-line">
-            {getStepDescription()}
+            {step.description}
           </p>
+          
+          {/* Warning when target not found */}
+          {step.targetSelector && targetError && (
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
+              <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+              <div className="text-destructive">
+                <div className="font-medium">Highlight failed: target not found</div>
+                <div className="text-xs opacity-80 mt-0.5 font-mono">{step.targetSelector}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Swipe hint */}
@@ -374,7 +460,7 @@ export function OnboardingSpotlight({
   const DesktopTooltip = () => (
     <div
       className={cn(
-        'absolute z-[110] p-5 bg-card border border-border rounded-2xl shadow-elevated',
+        'absolute z-[60] p-5 bg-card border border-border rounded-2xl shadow-elevated',
         'transition-all duration-150 ease-out',
         isAnimating ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
       )}
@@ -396,6 +482,17 @@ export function OnboardingSpotlight({
         <p className="text-sm text-muted-foreground leading-relaxed">
           {step.description}
         </p>
+        
+        {/* Warning when target not found */}
+        {step.targetSelector && targetError && (
+          <div className="flex items-start gap-2 p-2 bg-destructive/10 border border-destructive/20 rounded-lg text-xs">
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="text-destructive">
+              <div className="font-medium">Highlight failed</div>
+              <div className="opacity-80 font-mono">{step.targetSelector}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-6">
@@ -447,21 +544,91 @@ export function OnboardingSpotlight({
     </div>
   );
 
-  // Render highlight ring - fixed position, appended to body via portal
-  const HighlightRing = () => {
-    if (!targetRect || !highlightVisible) return null;
+  const content = (
+    <div 
+      ref={containerRef}
+      className="fixed inset-0 z-[40] overflow-hidden"
+      style={{ 
+        overflowX: 'hidden',
+        touchAction: 'none',
+      }}
+    >
+      {/* Dim backdrop - z-index 40 */}
+      <div 
+        className="absolute inset-0 bg-black/80"
+        onClick={(e) => e.stopPropagation()}
+        style={{ zIndex: 40 }}
+      />
 
-    const padding = 10;
-    
-    return (
+      {/* Highlight overlay - z-index 50, rendered via portal for proper positioning */}
+      {targetRect && highlightVisible && (
+        <TourHighlightOverlay rect={targetRect} debug={debug} />
+      )}
+
+      {/* Debug panel */}
+      <DebugPanel />
+
+      {/* Tooltip or Bottom Sheet based on device - z-index 60 */}
+      {isMobile ? <MobileBottomSheet /> : <DesktopTooltip />}
+    </div>
+  );
+
+  return createPortal(content, document.body);
+}
+
+// Dedicated highlight overlay component - rendered via portal
+interface TourHighlightOverlayProps {
+  rect: DOMRect;
+  debug?: boolean;
+}
+
+function TourHighlightOverlay({ rect, debug }: TourHighlightOverlayProps) {
+  const padding = 12;
+  
+  // Create the overlay as a portal to document.body
+  // This ensures it's not affected by any parent overflow:hidden or positioning
+  const overlay = (
+    <>
+      {/* SVG mask to create the spotlight cutout */}
+      <svg 
+        className="fixed inset-0 pointer-events-none"
+        style={{ zIndex: 45 }}
+        width="100%"
+        height="100%"
+      >
+        <defs>
+          <mask id="tour-spotlight-mask">
+            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+            <rect
+              x={rect.left - padding}
+              y={rect.top - padding}
+              width={rect.width + padding * 2}
+              height={rect.height + padding * 2}
+              rx="12"
+              ry="12"
+              fill="black"
+            />
+          </mask>
+        </defs>
+        <rect
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          fill="rgba(0, 0, 0, 0.75)"
+          mask="url(#tour-spotlight-mask)"
+        />
+      </svg>
+
+      {/* Highlight ring around target - fixed position, z-index 50 */}
       <div
         className="fixed pointer-events-none"
         style={{
-          top: targetRect.top - padding,
-          left: targetRect.left - padding,
-          width: targetRect.width + padding * 2,
-          height: targetRect.height + padding * 2,
-          zIndex: 105,
+          top: rect.top - padding,
+          left: rect.left - padding,
+          width: rect.width + padding * 2,
+          height: rect.height + padding * 2,
+          zIndex: 50,
           boxSizing: 'border-box',
         }}
       >
@@ -469,129 +636,35 @@ export function OnboardingSpotlight({
         <div 
           className="absolute inset-0 rounded-xl"
           style={{
-            boxShadow: '0 0 0 4px hsl(var(--primary) / 0.3), 0 0 20px 8px hsl(var(--primary) / 0.2)',
+            boxShadow: '0 0 0 4px hsl(var(--primary) / 0.4), 0 0 24px 10px hsl(var(--primary) / 0.25)',
           }}
         />
         {/* Border ring with pulse animation */}
         <div 
           className="absolute inset-0 rounded-xl border-2 border-primary animate-pulse"
         />
-        {/* Inner highlight */}
+        {/* Inner highlight fill */}
         <div 
           className="absolute inset-1 rounded-lg"
           style={{
-            background: 'hsl(var(--primary) / 0.05)',
+            background: 'hsl(var(--primary) / 0.08)',
           }}
         />
       </div>
-    );
-  };
 
-  // Mobile highlight indicator that appears near the target
-  const MobileHighlightIndicator = () => {
-    if (!highlightVisible || !targetRect || !isMobile) return null;
-
-    return (
-      <div 
-        className="fixed left-4 right-4 p-3 bg-card/95 backdrop-blur-sm rounded-xl border border-border flex items-center gap-3 shadow-lg"
-        style={{ 
-          zIndex: 106,
-          top: Math.min(targetRect.bottom + 16, window.innerHeight - 180),
-        }}
-      >
-        <div className="w-3 h-3 rounded-full bg-primary animate-pulse flex-shrink-0" />
-        <span className="text-sm text-muted-foreground">
-          Look at the highlighted element above
-        </span>
-      </div>
-    );
-  };
-
-  const content = (
-    <div 
-      ref={containerRef}
-      className="fixed inset-0 z-[100] overflow-hidden"
-      style={{ 
-        overflowX: 'hidden',
-        touchAction: 'none',
-      }}
-    >
-      {/* Overlay backdrop */}
-      <div 
-        className="absolute inset-0"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {targetRect && highlightVisible && !isMobile ? (
-          // Desktop: SVG spotlight with cutout
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <defs>
-              <mask id="spotlight-mask">
-                <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                <rect
-                  x={targetRect.left - 10}
-                  y={targetRect.top - 10}
-                  width={targetRect.width + 20}
-                  height={targetRect.height + 20}
-                  rx="12"
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            <rect
-              x="0"
-              y="0"
-              width="100%"
-              height="100%"
-              fill="rgba(0, 0, 0, 0.8)"
-              mask="url(#spotlight-mask)"
-              style={{ pointerEvents: 'auto' }}
-            />
-          </svg>
-        ) : targetRect && highlightVisible && isMobile ? (
-          // Mobile: SVG spotlight with cutout for target
-          <svg className="absolute inset-0 w-full h-full pointer-events-none">
-            <defs>
-              <mask id="mobile-spotlight-mask">
-                <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                <rect
-                  x={targetRect.left - 10}
-                  y={targetRect.top - 10}
-                  width={targetRect.width + 20}
-                  height={targetRect.height + 20}
-                  rx="12"
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            <rect
-              x="0"
-              y="0"
-              width="100%"
-              height="100%"
-              fill="rgba(0, 0, 0, 0.75)"
-              mask="url(#mobile-spotlight-mask)"
-              style={{ pointerEvents: 'auto' }}
-            />
-          </svg>
-        ) : (
-          // No target or not visible: simple overlay
-          <div 
-            className="absolute inset-0 bg-black/80"
-            style={{ pointerEvents: 'auto' }}
-          />
-        )}
-      </div>
-
-      {/* Highlight ring around target - rendered via fixed positioning */}
-      <HighlightRing />
-
-      {/* Mobile indicator showing where to look - only when highlight is visible */}
-      <MobileHighlightIndicator />
-
-      {/* Tooltip or Bottom Sheet based on device */}
-      {isMobile ? <MobileBottomSheet /> : <DesktopTooltip />}
-    </div>
+      {/* Debug indicator - red dot at top-left of highlight */}
+      {debug && (
+        <div
+          className="fixed w-3 h-3 bg-red-500 rounded-full border-2 border-white"
+          style={{
+            top: rect.top - padding - 6,
+            left: rect.left - padding - 6,
+            zIndex: 51,
+          }}
+        />
+      )}
+    </>
   );
 
-  return createPortal(content, document.body);
+  return createPortal(overlay, document.body);
 }

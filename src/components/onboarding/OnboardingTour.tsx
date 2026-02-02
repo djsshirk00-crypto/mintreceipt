@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 // Current onboarding version - increment when adding new features
 const ONBOARDING_VERSION = 1;
 
+// Use data-tour attributes for stable selectors that won't break on DOM changes
 const onboardingSteps: OnboardingStep[] = [
   {
     id: 'welcome',
@@ -14,46 +15,52 @@ const onboardingSteps: OnboardingStep[] = [
     description: 'Let me show you around. This quick tour will help you get the most out of your receipt-first budgeting.',
     position: 'center',
     icon: '🎉',
+    targetRoute: '/',
   },
   {
     id: 'upload',
     title: 'Capture Your Receipts',
     description: 'Take a photo of any receipt or upload a screenshot. Our AI will automatically extract the details and categorize your purchases.',
-    targetSelector: '[data-onboarding="upload-zone"]',
+    targetSelector: '[data-tour="upload-zone"]',
     position: 'bottom',
     icon: '📸',
+    targetRoute: '/',
   },
   {
     id: 'fab',
     title: 'Quick Capture Button',
     description: 'On mobile, tap this button to quickly snap a receipt photo or add a manual entry. It\'s always within reach!',
-    targetSelector: '[data-onboarding="fab"]',
+    targetSelector: '[data-tour="fab"]',
     position: 'top',
     icon: '⚡',
+    targetRoute: '/',
   },
   {
     id: 'status-cards',
     title: 'Track Your Progress',
     description: 'See your receipt status at a glance - processing, ready for review, or completed. Tap any card to dive in.',
-    targetSelector: '[data-onboarding="status-cards"]',
+    targetSelector: '[data-tour="status-cards"]',
     position: 'bottom',
     icon: '📊',
+    targetRoute: '/',
   },
   {
     id: 'spending',
     title: 'Spending Insights',
     description: 'View your spending breakdown by category. We\'ll show you where your money goes each week and month.',
-    targetSelector: '[data-onboarding="spending-reports"]',
+    targetSelector: '[data-tour="spending-reports"]',
     position: 'top',
     icon: '💰',
+    targetRoute: '/',
   },
   {
     id: 'navigation',
     title: 'Easy Navigation',
     description: 'Use the bottom navigation for core actions: Dashboard, Transactions, and Review. Tap Menu for Categories, Budget, and Settings.',
-    targetSelector: '[data-onboarding="nav"]',
+    targetSelector: '[data-tour="nav"]',
     position: 'top',
     icon: '🧭',
+    targetRoute: '/',
   },
   {
     id: 'complete',
@@ -61,6 +68,7 @@ const onboardingSteps: OnboardingStep[] = [
     description: 'Start by uploading your first receipt. You can replay this tutorial anytime from the Menu.',
     position: 'center',
     icon: '🚀',
+    targetRoute: '/',
   },
 ];
 
