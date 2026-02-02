@@ -59,7 +59,7 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
       }
       
       onClose?.();
-      navigate('/inbox');
+      navigate('/review');
     } catch (error) {
       toast.error('Failed to upload receipt');
     } finally {

@@ -152,7 +152,7 @@ export function ReceiptCard({ receipt, onClick, selected }: ReceiptCardProps) {
                   );
                 })}
               </div>
-            ) : receipt.status === 'inbox' || receipt.status === 'processing' ? (
+            ) : receipt.status === 'processing' ? (
               <p className="text-sm text-muted-foreground italic mb-2">
                 Awaiting categorization...
               </p>

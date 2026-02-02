@@ -1,90 +1,65 @@
+# Project Roadmap
 
+## Phase 1: Streamlined Capture Flow ✅ COMPLETED
+- 1.1 Remove Inbox + Direct-to-Review
+- 1.2 Enhanced Review Page
+- 1.3 Simplified Mobile Nav
 
-# Add Inbox Cleanup to Phase 2 Roadmap
+## Phase 2: Transactions & Data Management
 
-## Overview
-
-Remove all remaining `inbox` references from the codebase. The Inbox page was deleted in Phase 1, but several components still reference the now-obsolete status.
-
----
-
-## Issues Found (Complete List)
-
-| File | Line | Issue |
-|------|------|-------|
-| `src/pages/Dashboard.tsx` | 25-31 | `handleProcessAll` filters for `status === 'inbox'` - orphaned logic |
-| `src/components/receipt/MobileCameraCapture.tsx` | 62 | Navigates to `/inbox` instead of `/review` |
-| `src/components/receipt/StatusBadge.tsx` | 3, 15-18 | Imports `Inbox` icon, has `inbox` status config |
-| `src/components/receipt/ReceiptCard.tsx` | 155 | Checks `status === 'inbox'` |
-| `src/hooks/useReceipts.ts` | 64, 125, 254 | References `inbox` status in multiple places |
-| `src/types/receipt.ts` | 1 | `ReceiptStatus` type includes `'inbox'` |
+| Order | Feature | Effort | Impact | Status |
+|-------|---------|--------|--------|--------|
+| 2.1 | Transactions Tab | Medium | Very High | Planned |
+| 2.2 | Interactive Weekly Review Categories | Low | High | Planned |
+| 2.3 | Unified Budget & Categories Page | Medium | High | Planned |
+| 2.4 | Inbox Cleanup (remove all references) | Low | High | ✅ DONE |
 
 ---
 
-## Phase 2 Addition: 2.4 Inbox Cleanup
+## Phase 2.4: Inbox Cleanup - COMPLETED
 
-**Priority**: High | **Effort**: Low | **Impact**: High (code hygiene)
+All `inbox` references have been removed from the codebase:
 
-### Changes Required
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/pages/Dashboard.tsx` | Remove `handleProcessAll` function entirely (lines 22-36), remove "Process All" button |
-| `src/components/receipt/MobileCameraCapture.tsx` | Change `navigate('/inbox')` to `navigate('/review')` |
-| `src/components/receipt/StatusBadge.tsx` | Remove `Inbox` icon import, remove `inbox` status config |
-| `src/components/receipt/ReceiptCard.tsx` | Remove `status === 'inbox'` check |
-| `src/hooks/useReceipts.ts` | Remove `inbox` from statusCounts, update fallback status to `'processing'` |
-| `src/types/receipt.ts` | Remove `'inbox'` from `ReceiptStatus` type |
+| `src/types/receipt.ts` | Removed `'inbox'` from `ReceiptStatus` type |
+| `src/pages/Dashboard.tsx` | Removed `handleProcessAll` function and "Process All" button |
+| `src/components/receipt/MobileCameraCapture.tsx` | Changed navigation from `/inbox` to `/review` |
+| `src/components/receipt/StatusBadge.tsx` | Removed `Inbox` icon import and `inbox` status config |
+| `src/components/receipt/ReceiptCard.tsx` | Removed `status === 'inbox'` check |
+| `src/hooks/useReceipts.ts` | Removed `inbox` from statusCounts, updated fallback to `'processing'` |
 
 ---
 
-## Updated Phase 2 in Roadmap
+## Phase 3: Intelligence & Efficiency
+- 3.1 Smart Category Suggestions (via line_item_history)
+- 3.2 One-Tap Swipe Review
 
-### Phase 2: Transactions & Data Management
+## Phase 4: Psychological Rewards
+- 4.1 Spending Pulse Summary (3-number dashboard)
+- 4.2 Wins & Progress Celebrations
 
-| Order | Feature | Effort | Impact |
-|-------|---------|--------|--------|
-| 2.1 | Transactions Tab | Medium | Very High |
-| 2.2 | Interactive Weekly Review Categories | Low | High |
-| 2.3 | Unified Budget & Categories Page | Medium | High |
-| **2.4** | **Inbox Cleanup (remove all references)** | **Low** | **High** |
+## Phase 5: Effortless Reporting
+- 5.1 Monthly Financial Snapshot (PDF/Summary)
+- 5.2 Receipt Search
 
----
-
-## Dashboard After Cleanup
-
-The Dashboard will:
-- Remove the "Process All" button (no longer needed - processing is automatic)
-- Keep the 3 status cards: "Ready for Review", "Reviewed", "Failed"
-- No longer track or display inbox-related counts
+## Phase 6: Budget Automation
+- 6.1 Budget Templates
+- 6.2 Rollover Logic
 
 ---
 
-## Files to Modify
-
-| Action | File |
-|--------|------|
-| Modify | `src/types/receipt.ts` |
-| Modify | `src/pages/Dashboard.tsx` |
-| Modify | `src/components/receipt/MobileCameraCapture.tsx` |
-| Modify | `src/components/receipt/StatusBadge.tsx` |
-| Modify | `src/components/receipt/ReceiptCard.tsx` |
-| Modify | `src/hooks/useReceipts.ts` |
-| Modify | `.lovable/plan.md` |
-
----
-
-## Updated Recommended Build Order
+## Recommended Build Order
 
 | Order | Feature | Phase | Effort | Impact |
 |-------|---------|-------|--------|--------|
-| 1 | Remove Inbox + Direct-to-Review | 1.1 | Medium | Very High |
-| 2 | Enhanced Review Page | 1.2 | Medium | Very High |
-| 3 | Simplified Mobile Nav | 1.3 | Low | High |
-| 4 | Transactions Tab | 2.1 | Medium | Very High |
-| 5 | Interactive Review Categories | 2.2 | Low | High |
-| 6 | Unified Budget & Categories | 2.3 | Medium | High |
-| **7** | **Inbox Cleanup** | **2.4** | **Low** | **High** |
-| 8 | Spending Pulse Summary | 4.1 | Low | Very High |
-| ... | (rest unchanged) | ... | ... | ... |
-
+| 1 | Remove Inbox + Direct-to-Review | 1.1 | Medium | Very High | ✅ |
+| 2 | Enhanced Review Page | 1.2 | Medium | Very High | ✅ |
+| 3 | Simplified Mobile Nav | 1.3 | Low | High | ✅ |
+| 4 | Transactions Tab | 2.1 | Medium | Very High | |
+| 5 | Interactive Review Categories | 2.2 | Low | High | |
+| 6 | Unified Budget & Categories | 2.3 | Medium | High | |
+| 7 | Inbox Cleanup | 2.4 | Low | High | ✅ |
+| 8 | Spending Pulse Summary | 4.1 | Low | Very High | |
+| 9 | Smart Category Suggestions | 3.1 | Medium | High | |
+| 10 | One-Tap Swipe Review | 3.2 | Medium | High | |
