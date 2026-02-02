@@ -1,23 +1,24 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, CheckSquare, Receipt, Menu } from 'lucide-react';
+import { Home, CheckSquare, Receipt, Menu, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FloatingCaptureButton } from './FloatingCaptureButton';
 import { PullToRefresh } from './PullToRefresh';
 import { MenuDrawer } from './MenuDrawer';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Button } from '@/components/ui/button';
 
 interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-// Mobile: 4 core tabs (Dashboard, Transactions, Review, Menu)
+// Mobile: 4 core tabs (Dashboard, Transactions, Review, Budget)
 const mobileNavItems = [
-  { path: '/', label: 'Dashboard', icon: Home },
+  { path: '/', label: 'Home', icon: Home },
   { path: '/transactions', label: 'Transactions', icon: Receipt },
   { path: '/review', label: 'Review', icon: CheckSquare },
+  { path: '/budget', label: 'Budget', icon: Wallet },
 ];
 
 // Desktop: full navigation
@@ -57,17 +58,6 @@ export function AppLayout({ children }: AppLayoutProps) {
             {label}
           </Link>
         ))}
-        {/* Menu button */}
-        <button
-          onClick={() => setMenuOpen(true)}
-          className={cn(
-            'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors touch-target',
-            'text-muted-foreground'
-          )}
-        >
-          <Menu className="h-5 w-5" />
-          Menu
-        </button>
       </div>
     </nav>
   );
@@ -83,6 +73,19 @@ export function AppLayout({ children }: AppLayoutProps) {
             </div>
             <span className="text-xl font-bold text-foreground">MintReceipt</span>
           </Link>
+
+          {/* Mobile menu button in header */}
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMenuOpen(true)}
+              className="md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          )}
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">

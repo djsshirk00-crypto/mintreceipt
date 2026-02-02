@@ -1,8 +1,63 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ReceiptStatus, CategoryTotals, LineItem } from '@/types/receipt';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
+
+const PROCESSING_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+
+// Hook to auto-fail receipts stuck in processing for > 3 minutes
+export function useProcessingTimeout() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const checkTimeouts = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: processingReceipts } = await supabase
+          .from('receipts')
+          .select('id, created_at')
+          .eq('user_id', user.id)
+          .eq('status', 'processing');
+
+        if (!processingReceipts || processingReceipts.length === 0) return;
+
+        const now = Date.now();
+        let anyUpdated = false;
+
+        for (const receipt of processingReceipts) {
+          const createdAt = new Date(receipt.created_at).getTime();
+          if (now - createdAt > PROCESSING_TIMEOUT_MS) {
+            await supabase
+              .from('receipts')
+              .update({
+                status: 'failed',
+                error_message: 'Processing timed out after 3 minutes. Please try again.',
+              })
+              .eq('id', receipt.id);
+            anyUpdated = true;
+          }
+        }
+
+        if (anyUpdated) {
+          queryClient.invalidateQueries({ queryKey: ['receipts'] });
+          queryClient.invalidateQueries({ queryKey: ['receipt-stats'] });
+        }
+      } catch (error) {
+        console.error('Error checking processing timeouts:', error);
+      }
+    };
+
+    // Check immediately and then every 30 seconds
+    checkTimeouts();
+    const interval = setInterval(checkTimeouts, 30000);
+
+    return () => clearInterval(interval);
+  }, [queryClient]);
+}
 
 // Database row type from Supabase
 interface ReceiptRow {
