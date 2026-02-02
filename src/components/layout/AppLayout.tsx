@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Inbox, CheckSquare, Receipt, Tags, Target, Settings } from 'lucide-react';
+import { Home, CheckSquare, Receipt, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FloatingCaptureButton } from './FloatingCaptureButton';
 import { PullToRefresh } from './PullToRefresh';
+import { MenuDrawer } from './MenuDrawer';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -11,29 +13,37 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-const navItems = [
+// Mobile: 4 core tabs (Dashboard, Transactions, Review, Menu)
+const mobileNavItems = [
   { path: '/', label: 'Dashboard', icon: Home },
-  { path: '/inbox', label: 'Inbox', icon: Inbox },
+  { path: '/transactions', label: 'Transactions', icon: Receipt },
   { path: '/review', label: 'Review', icon: CheckSquare },
-  { path: '/budget', label: 'Budget', icon: Target },
-  { path: '/categories', label: 'Categories', icon: Tags },
-  { path: '/settings', label: 'Settings', icon: Settings },
+];
+
+// Desktop: full navigation
+const desktopNavItems = [
+  { path: '/', label: 'Dashboard', icon: Home },
+  { path: '/transactions', label: 'Transactions', icon: Receipt },
+  { path: '/review', label: 'Review', icon: CheckSquare },
+  { path: '/categories', label: 'Categories' },
+  { path: '/budget', label: 'Budget' },
+  { path: '/settings', label: 'Settings' },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleRefresh = useCallback(async () => {
-    // Invalidate all queries to refresh data
     await queryClient.invalidateQueries();
   }, [queryClient]);
 
   const MobileNav = () => (
     <nav data-onboarding="nav" className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
       <div className="flex items-center justify-around h-16 pb-safe">
-        {navItems.map(({ path, label, icon: Icon }) => (
+        {mobileNavItems.map(({ path, label, icon: Icon }) => (
           <Link
             key={path}
             to={path}
@@ -48,6 +58,17 @@ export function AppLayout({ children }: AppLayoutProps) {
             {label}
           </Link>
         ))}
+        {/* Menu button */}
+        <button
+          onClick={() => setMenuOpen(true)}
+          className={cn(
+            'flex flex-col items-center gap-1 px-3 py-2 text-xs font-medium transition-colors touch-target',
+            'text-muted-foreground'
+          )}
+        >
+          <Menu className="h-5 w-5" />
+          Menu
+        </button>
       </div>
     </nav>
   );
@@ -66,7 +87,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
-            {navItems.map(({ path, label, icon: Icon }) => (
+            {desktopNavItems.map(({ path, label }) => (
               <Link
                 key={path}
                 to={path}
@@ -77,7 +98,6 @@ export function AppLayout({ children }: AppLayoutProps) {
                     : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
-                <Icon className="h-4 w-4" />
                 {label}
               </Link>
             ))}
@@ -101,6 +121,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </PullToRefresh>
         <FloatingCaptureButton />
         <MobileNav />
+        <MenuDrawer open={menuOpen} onOpenChange={setMenuOpen} />
       </>
     );
   }

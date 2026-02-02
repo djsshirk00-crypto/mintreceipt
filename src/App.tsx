@@ -8,7 +8,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import Dashboard from "./pages/Dashboard";
-import InboxPage from "./pages/InboxPage";
+import TransactionsPage from "./pages/TransactionsPage";
 import ReviewPage from "./pages/ReviewPage";
 import ReviewedReceiptsPage from "./pages/ReviewedReceiptsPage";
 import CategoriesPage from "./pages/CategoriesPage";
@@ -29,7 +29,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/" element={<AuthGuard><Dashboard /></AuthGuard>} />
-            <Route path="/inbox" element={<AuthGuard><InboxPage /></AuthGuard>} />
+            <Route path="/transactions" element={<AuthGuard><TransactionsPage /></AuthGuard>} />
             <Route path="/review" element={<AuthGuard><ReviewPage /></AuthGuard>} />
             <Route path="/reviewed" element={<AuthGuard><ReviewedReceiptsPage /></AuthGuard>} />
             <Route path="/categories" element={<AuthGuard><CategoriesPage /></AuthGuard>} />
