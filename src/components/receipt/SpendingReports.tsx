@@ -1,15 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useSpendingStats, useWeeklyTrend, useMonthlyTrend, useCustomSpendingStats, TimeRange } from '@/hooks/useSpendingStats';
+import { useSpendingStats, useWeeklyTrend, useMonthlyTrend, useCustomSpendingStats, TimeRange, CategorySpending } from '@/hooks/useSpendingStats';
 import { DynamicCategorySummaryGrid } from './DynamicCategorySummary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Calendar, DollarSign } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 
 export function SpendingReports() {
+  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<TimeRange>('this-month');
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>();
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>();
@@ -43,6 +45,18 @@ export function SpendingReports() {
   };
 
   const trend = calculateTrend();
+
+  // Handle category card click - navigate to transactions with filters
+  const handleCategoryClick = useCallback((category: CategorySpending) => {
+    if (!displayStats) return;
+    
+    const params = new URLSearchParams();
+    params.set('category', category.categoryName.toLowerCase());
+    params.set('from', format(displayStats.startDate, 'yyyy-MM-dd'));
+    params.set('to', format(displayStats.endDate, 'yyyy-MM-dd'));
+    
+    navigate(`/transactions?${params.toString()}`);
+  }, [displayStats, navigate]);
 
   return (
     <div className="space-y-6">
@@ -164,6 +178,7 @@ export function SpendingReports() {
               <DynamicCategorySummaryGrid 
                 categories={displayStats.categories} 
                 total={displayStats.total}
+                onCategoryClick={handleCategoryClick}
               />
             </div>
           ) : timeRange === 'custom' && (!customStartDate || !customEndDate) ? (

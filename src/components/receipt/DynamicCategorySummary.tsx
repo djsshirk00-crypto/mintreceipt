@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { CategorySpending } from '@/hooks/useSpendingStats';
+import { ChevronRight } from 'lucide-react';
 
 interface DynamicCategorySummaryCardProps {
   category: CategorySpending;
@@ -18,8 +19,8 @@ export function DynamicCategorySummaryCard({
   return (
     <Card 
       className={cn(
-        'cursor-pointer transition-all duration-200 hover:shadow-medium',
-        onClick && 'hover:scale-[1.02]'
+        'transition-all duration-200 hover:shadow-medium min-h-[52px]',
+        onClick && 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
       )}
       onClick={onClick}
     >
@@ -28,7 +29,10 @@ export function DynamicCategorySummaryCard({
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xl">
             {category.icon}
           </div>
-          <span className="font-medium text-foreground truncate">{category.categoryName}</span>
+          <span className="font-medium text-foreground truncate flex-1">{category.categoryName}</span>
+          {onClick && (
+            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          )}
         </div>
 
         <div className="space-y-2">
@@ -56,9 +60,10 @@ export function DynamicCategorySummaryCard({
 interface DynamicCategorySummaryGridProps {
   categories: CategorySpending[];
   total: number;
+  onCategoryClick?: (category: CategorySpending) => void;
 }
 
-export function DynamicCategorySummaryGrid({ categories, total }: DynamicCategorySummaryGridProps) {
+export function DynamicCategorySummaryGrid({ categories, total, onCategoryClick }: DynamicCategorySummaryGridProps) {
   // Filter out categories with 0 amount for cleaner display, but always show at least empty state
   const nonZeroCategories = categories.filter(c => c.amount > 0);
   const displayCategories = nonZeroCategories.length > 0 ? nonZeroCategories : categories.slice(0, 4);
@@ -70,6 +75,7 @@ export function DynamicCategorySummaryGrid({ categories, total }: DynamicCategor
           key={category.categoryId}
           category={category}
           totalAmount={total}
+          onClick={onCategoryClick ? () => onCategoryClick(category) : undefined}
         />
       ))}
     </div>

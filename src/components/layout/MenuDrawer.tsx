@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Menu, 
-  Tags, 
   Target, 
   Settings, 
   HelpCircle, 
@@ -97,13 +96,8 @@ export function MenuDrawer({ trigger, open, onOpenChange }: MenuDrawerProps) {
         <div className="px-4 pb-8 space-y-1">
           {/* Primary menu items */}
           <MenuItem 
-            icon={<Tags className="h-5 w-5" />} 
-            label="Categories"
-            onClick={() => handleMenuItemClick('/categories')}
-          />
-          <MenuItem 
             icon={<Target className="h-5 w-5" />} 
-            label="Budget"
+            label="Budget & Categories"
             onClick={() => handleMenuItemClick('/budget')}
           />
           <MenuItem 
