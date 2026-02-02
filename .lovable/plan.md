@@ -1,87 +1,180 @@
 
+# Fix: Mobile File Upload Flow
 
-# Fix: App Not Loading Due to Function Declaration Order
+## Problem Summary
 
-## Problem Identified
+The "Upload Screenshot or PDF" button on mobile shows an **unnecessary preview screen** after file selection, causing users to get stuck. The user must tap "Use Photo" to actually upload, but:
 
-The app is stuck on "Processing..." because of a **variable hoisting issue** in `ReviewPage.tsx`:
+1. This extra step is confusing and breaks the expected flow
+2. PDFs cannot be previewed as images (blank/broken preview)
+3. Users expect immediate upload like the FAB camera button provides
 
-| Issue | Location | Problem |
-|-------|----------|---------|
-| `cn` function declared after use | Line 358 | `cn` is used in `ReviewContent` (line 231) but defined later (line 358) |
-| React ref warning | `DynamicCategorySummary.tsx` | Function components receiving refs without `forwardRef` |
-
-The `ReviewContent` sub-component tries to call `cn()` at line 231, but `cn` is defined as a `const` at line 358, which means it's not hoisted and is `undefined` when first called.
+| Current Flow (Broken) | Expected Flow (Fixed) |
+|----------------------|----------------------|
+| Tap "Upload Screenshot or PDF" | Tap "Upload Screenshot or PDF" |
+| Select file | Select file |
+| **See blank/broken preview screen** | **Immediately upload** |
+| Must tap "Use Photo" | Show loading indicator |
+| Then navigates to Review | Navigate to Review |
 
 ---
 
-## Fix 1: Move `cn` Import to Top (Primary Fix)
+## Solution
 
-**File: `src/pages/ReviewPage.tsx`**
+Refactor `MobileCameraCapture` to upload **immediately** after file selection, matching the behavior of `FloatingCaptureButton` and `ReceiptUploader`. Remove the preview screen entirely.
 
-**Action:** Add `cn` import from `@/lib/utils` and remove the local definition
+---
 
-```diff
-+ import { cn } from '@/lib/utils';
-  import { useState } from 'react';
-  ...
-  
-  // Line 358 - DELETE this local cn function:
-- // Helper for className
-- const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+## Technical Changes
+
+### File: `src/components/receipt/MobileCameraCapture.tsx`
+
+**Remove:**
+- The preview screen state (`capturedFile`, `previewUrl`)
+- The preview UI (full-screen modal with Retake/Use Photo buttons)
+- The two-step flow
+
+**Add:**
+- Immediate upload on file selection
+- Loading state on the button itself
+- Toast feedback for success/failure
+- Direct navigation to `/review` after upload
+
+### New Component Flow
+
+```text
+┌──────────────────────────────────────┐
+│  📤  Upload Screenshot or PDF        │  ← User taps
+└──────────────────────────────────────┘
+                  ↓
+        [File picker opens]
+                  ↓
+        User selects file & taps OK
+                  ↓
+┌──────────────────────────────────────┐
+│  ⟳  Uploading...                     │  ← Button shows spinner
+└──────────────────────────────────────┘
+                  ↓
+        Upload completes (1-2 seconds)
+                  ↓
+        Toast: "Receipt uploaded!"
+                  ↓
+        Navigate to /review
+```
+
+### Implementation
+
+```tsx
+export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
+  const [uploading, setUploading] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const uploadReceipt = useUploadReceipt();
+  const navigate = useNavigate();
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      await uploadReceipt.mutateAsync(file);
+      
+      // Haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+      
+      toast.success('Receipt uploaded! Processing...');
+      onClose?.();
+      navigate('/review');
+    } catch (error) {
+      // Error handled in mutation hook
+    } finally {
+      setUploading(false);
+      // Reset input for repeat selections
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
+    }
+  }, [uploadReceipt, onClose, navigate]);
+
+  const openGallery = useCallback(() => {
+    galleryInputRef.current?.click();
+  }, []);
+
+  // Single button - no preview screen
+  return (
+    <>
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        onChange={handleFileChange}
+        className="hidden"
+        disabled={uploading}
+      />
+      
+      <button
+        onClick={openGallery}
+        disabled={uploading}
+        className={cn(
+          'w-full flex items-center justify-center gap-3 p-4',
+          'rounded-xl border-2 border-dashed border-primary/30',
+          'bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors',
+          'cursor-pointer min-h-[52px]',
+          uploading && 'opacity-70 cursor-wait'
+        )}
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
+          {uploading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Image className="h-5 w-5" />
+          )}
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-foreground text-sm">
+            {uploading ? 'Uploading...' : 'Upload Screenshot or PDF'}
+          </p>
+          {!uploading && (
+            <p className="text-xs text-muted-foreground">From gallery or files</p>
+          )}
+        </div>
+      </button>
+    </>
+  );
+}
 ```
 
 ---
 
-## Fix 2: Add `forwardRef` to Summary Components (Secondary Fix)
+## Defensive Handling
 
-**File: `src/components/receipt/DynamicCategorySummary.tsx`**
-
-The React warning about refs is a warning only (not blocking), but should be fixed for clean console output.
-
-```diff
-- export function DynamicCategorySummaryCard({ ... }: DynamicCategorySummaryCardProps) {
-+ export const DynamicCategorySummaryCard = React.forwardRef<HTMLDivElement, DynamicCategorySummaryCardProps>(
-+   function DynamicCategorySummaryCard({ ... }, ref) {
-      ...
--     <Card ...>
-+     <Card ref={ref} ...>
-      ...
--   );
-- }
-+   }
-+ );
-
-- export function DynamicCategorySummaryGrid({ ... }: DynamicCategorySummaryGridProps) {
-+ export const DynamicCategorySummaryGrid = React.forwardRef<HTMLDivElement, DynamicCategorySummaryGridProps>(
-+   function DynamicCategorySummaryGrid({ ... }, ref) {
-      ...
--   );
-- }
-+   }
-+ );
-```
+| Scenario | Handling |
+|----------|----------|
+| User cancels file picker | `file` is undefined → early return, no action |
+| Empty file array | Same as cancel → early return |
+| Upload fails | Error toast shown by `useUploadReceipt` hook |
+| Permission denied | Browser handles this before our code runs |
+| PDF selected | Works the same as images - no preview needed |
+| Multiple files | Currently single file, but could be extended |
 
 ---
 
 ## Files to Modify
 
-| Action | File |
-|--------|------|
-| Modify | `src/pages/ReviewPage.tsx` - Add `cn` import, remove local definition |
-| Modify | `src/components/receipt/DynamicCategorySummary.tsx` - Add `forwardRef` to components |
+| File | Change |
+|------|--------|
+| `src/components/receipt/MobileCameraCapture.tsx` | Remove preview screen, upload immediately on file selection |
 
 ---
 
-## Technical Details
+## Acceptance Criteria
 
-### Why This Happened
-- During the Phase 2.5 implementation, the `ReviewContent` sub-component was created using a `cn` helper
-- A local `cn` function was added at the bottom of the component for convenience
-- JavaScript `const` declarations are **not hoisted**, so calling `cn()` before it's defined causes an error
-- The app appears to be "Processing..." because React crashes during render before the UI can update
-
-### The Fix
-- Import `cn` from the existing utility file `@/lib/utils` (which is already used throughout the codebase)
-- This ensures `cn` is available at the top of the file before any component code runs
-
+- Selecting a file uploads immediately (within 1-2 seconds)
+- User is taken directly to Review page
+- No blank screens or intermediate modals
+- Button shows loading indicator during upload
+- Toast confirms upload success
+- Works for JPG, PNG, and PDF
+- Works consistently on Android and iOS mobile browsers
