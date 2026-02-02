@@ -35,8 +35,7 @@ export default function Dashboard() {
 
         {/* Upload zone - mobile camera capture or desktop dropzone */}
         {/* data-tour attribute for onboarding highlight */}
-        {/* pb-20 on mobile ensures button stays above fixed bottom nav */}
-        <div data-tour="upload-zone" className={isMobile ? "pb-20" : ""}>
+        <div data-tour="upload-zone">
           {isMobile ? (
             <MobileCameraCapture />
           ) : (

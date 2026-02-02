@@ -108,7 +108,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       </header>
 
       {/* Main content */}
-      <main className="container py-6 md:py-8 pb-24 md:pb-8">
+      <main className="container py-6 md:py-8 pb-32 md:pb-8">
         {children}
       </main>
     </div>
