@@ -39,13 +39,14 @@ export function FloatingCaptureButton() {
         navigator.vibrate(50);
       }
       
-      toast.success('Receipt uploaded! Processing...', {
-        description: 'Head to Inbox to see your receipt.',
+      toast.success('Receipt uploaded! Processing in background...', {
+        description: 'Head to Review to finalize.',
       });
       
-      navigate('/inbox');
+      // Navigate directly to Review page (no more Inbox)
+      navigate('/review');
     } catch (error) {
-      toast.error('Failed to upload receipt');
+      // Error already handled in mutation
     } finally {
       setUploading(false);
       // Reset input so same file can be selected again

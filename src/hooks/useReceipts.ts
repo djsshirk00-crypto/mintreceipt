@@ -251,14 +251,14 @@ export function useUploadReceipt() {
         throw new Error('Failed to get secure URL for uploaded image');
       }
 
-      // Create receipt record with file hash
+      // Create receipt record with 'processing' status (skip inbox entirely)
       const { data: receipt, error: insertError } = await supabase
         .from('receipts')
         .insert({
           user_id: user.id,
           image_path: fileName,
           image_url: urlData.signedUrl,
-          status: 'inbox',
+          status: 'processing', // Start processing immediately
           file_hash: fileHash,
         })
         .select()
@@ -266,12 +266,25 @@ export function useUploadReceipt() {
 
       if (insertError) throw insertError;
 
-      return transformRow(receipt as ReceiptRow);
+      const transformedReceipt = transformRow(receipt as ReceiptRow);
+
+      // Trigger processing in background (don't await - fire and forget)
+      supabase.functions.invoke('process-receipt', {
+        body: { receiptId: receipt.id },
+      }).then(() => {
+        queryClient.invalidateQueries({ queryKey: ['receipts'] });
+        queryClient.invalidateQueries({ queryKey: ['receipt-stats'] });
+      }).catch((err) => {
+        console.error('Background processing failed:', err);
+        // Will be retried or shown as failed in UI
+        queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      });
+
+      return transformedReceipt;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       queryClient.invalidateQueries({ queryKey: ['receipt-stats'] });
-      toast.success('Receipt uploaded! It will be processed shortly.');
     },
     onError: (error) => {
       toast.error(`Upload failed: ${error.message}`);

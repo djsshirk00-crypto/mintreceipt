@@ -34,7 +34,10 @@ export default function ReviewPage() {
     other_amount: 0,
   });
 
+  // Show both processing and processed receipts (new streamlined flow)
+  const processingReceipts = receipts?.filter(r => r.status === 'processing') || [];
   const processedReceipts = receipts?.filter(r => r.status === 'processed') || [];
+  const pendingReceipts = [...processingReceipts, ...processedReceipts];
   const reviewedReceipts = receipts?.filter(r => r.status === 'reviewed') || [];
 
   // Calculate totals for reviewed receipts
@@ -211,10 +214,10 @@ export default function ReviewPage() {
           </section>
         )}
 
-        {/* Pending review */}
+        {/* Pending review - includes both processing and processed */}
         <section>
           <h2 className="text-xl font-semibold text-foreground mb-4">
-            Ready for Review ({processedReceipts.length})
+            Ready for Review ({pendingReceipts.length})
           </h2>
 
           {isLoading ? (
@@ -223,14 +226,23 @@ export default function ReviewPage() {
                 <Skeleton key={i} className="h-32" />
               ))}
             </div>
-          ) : processedReceipts.length > 0 ? (
+          ) : pendingReceipts.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {processedReceipts.map(receipt => (
-                <ReceiptCard 
-                  key={receipt.id} 
-                  receipt={receipt}
-                  onClick={() => handleSelectReceipt(receipt)}
-                />
+              {pendingReceipts.map(receipt => (
+                <div key={receipt.id} className="relative">
+                  <ReceiptCard 
+                    receipt={receipt}
+                    onClick={receipt.status === 'processed' ? () => handleSelectReceipt(receipt) : undefined}
+                  />
+                  {receipt.status === 'processing' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Processing...</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           ) : (
@@ -243,7 +255,7 @@ export default function ReviewPage() {
                   All caught up!
                 </h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  No receipts pending review. Upload more receipts to continue tracking your spending.
+                  No receipts pending review. Capture a new receipt to continue tracking your spending.
                 </p>
               </CardContent>
             </Card>

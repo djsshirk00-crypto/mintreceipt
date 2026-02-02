@@ -34,7 +34,7 @@ const onboardingSteps: OnboardingStep[] = [
   {
     id: 'status-cards',
     title: 'Track Your Progress',
-    description: 'See how many receipts are in your inbox, ready for review, or need attention. Tap any card to dive in.',
+    description: 'See your receipt status at a glance - processing, ready for review, or completed. Tap any card to dive in.',
     targetSelector: '[data-onboarding="status-cards"]',
     position: 'bottom',
     icon: '📊',
@@ -50,7 +50,7 @@ const onboardingSteps: OnboardingStep[] = [
   {
     id: 'navigation',
     title: 'Easy Navigation',
-    description: 'Use the bottom navigation to switch between Dashboard, Inbox, Review, Budget, Categories, and Settings.',
+    description: 'Use the bottom navigation for core actions: Dashboard, Transactions, and Review. Tap Menu for Categories, Budget, and Settings.',
     targetSelector: '[data-onboarding="nav"]',
     position: 'top',
     icon: '🧭',
@@ -58,7 +58,7 @@ const onboardingSteps: OnboardingStep[] = [
   {
     id: 'complete',
     title: 'You\'re All Set!',
-    description: 'Start by uploading your first receipt. You can replay this tutorial anytime from Settings.',
+    description: 'Start by uploading your first receipt. You can replay this tutorial anytime from the Menu.',
     position: 'center',
     icon: '🚀',
   },
