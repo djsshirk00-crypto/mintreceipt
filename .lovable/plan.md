@@ -1,58 +1,87 @@
-# MintReceipt – Product Roadmap
 
-## Phase 2.5: Mobile UX Improvements (Complete)
 
-| Order | Feature | Status |
-|-------|---------|--------|
-| 2.5.1 | Processing Timeout (3 min auto-fail with retry/delete) | ✅ Complete |
-| 2.5.2 | Review Page Mobile Optimization (bottom sheet) | ✅ Complete |
-| 2.5.3 | Menu Button to Header (mobile) | ✅ Complete |
-| 2.5.4 | Budget Tab in Bottom Nav | ✅ Complete |
-| 2.5.5 | Simplify Dashboard Capture (keep upload only) | ✅ Complete |
+# Fix: App Not Loading Due to Function Declaration Order
 
----
+## Problem Identified
 
-## Phase 2: Transactions & Data Management (Complete)
+The app is stuck on "Processing..." because of a **variable hoisting issue** in `ReviewPage.tsx`:
 
-| Order | Feature | Status |
-|-------|---------|--------|
-| 2.1 | Transactions Tab Enhancements | ✅ Complete |
-| 2.2 | Interactive Weekly Review Categories | ✅ Complete |
-| 2.3 | Unified Budget & Categories Page | ✅ Complete |
-| 2.4 | Inbox Cleanup | ✅ Complete |
+| Issue | Location | Problem |
+|-------|----------|---------|
+| `cn` function declared after use | Line 358 | `cn` is used in `ReviewContent` (line 231) but defined later (line 358) |
+| React ref warning | `DynamicCategorySummary.tsx` | Function components receiving refs without `forwardRef` |
+
+The `ReviewContent` sub-component tries to call `cn()` at line 231, but `cn` is defined as a `const` at line 358, which means it's not hoisted and is `undefined` when first called.
 
 ---
 
-## Phase 3: Intelligence & Efficiency (Planned)
+## Fix 1: Move `cn` Import to Top (Primary Fix)
 
-| Order | Feature | Status |
-|-------|---------|--------|
-| 3.1 | Smart Category Suggestions (line_item_history) | Planned |
-| 3.2 | One-Tap Swipe Review | Planned |
+**File: `src/pages/ReviewPage.tsx`**
 
----
+**Action:** Add `cn` import from `@/lib/utils` and remove the local definition
 
-## Phase 4: Psychological Rewards (Planned)
-
-| Order | Feature | Status |
-|-------|---------|--------|
-| 4.1 | Spending Pulse Summary (3-number dashboard) | Planned |
-| 4.2 | Wins & Progress Celebrations | Planned |
-
----
-
-## Phase 5: Effortless Reporting (Planned)
-
-| Order | Feature | Status |
-|-------|---------|--------|
-| 5.1 | Monthly Financial Snapshot (PDF/Summary) | Planned |
-| 5.2 | Receipt Search | Planned |
+```diff
++ import { cn } from '@/lib/utils';
+  import { useState } from 'react';
+  ...
+  
+  // Line 358 - DELETE this local cn function:
+- // Helper for className
+- const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+```
 
 ---
 
-## Phase 6: Budget Automation (Planned)
+## Fix 2: Add `forwardRef` to Summary Components (Secondary Fix)
 
-| Order | Feature | Status |
-|-------|---------|--------|
-| 6.1 | Budget Templates | Planned |
-| 6.2 | Rollover Logic | Planned |
+**File: `src/components/receipt/DynamicCategorySummary.tsx`**
+
+The React warning about refs is a warning only (not blocking), but should be fixed for clean console output.
+
+```diff
+- export function DynamicCategorySummaryCard({ ... }: DynamicCategorySummaryCardProps) {
++ export const DynamicCategorySummaryCard = React.forwardRef<HTMLDivElement, DynamicCategorySummaryCardProps>(
++   function DynamicCategorySummaryCard({ ... }, ref) {
+      ...
+-     <Card ...>
++     <Card ref={ref} ...>
+      ...
+-   );
+- }
++   }
++ );
+
+- export function DynamicCategorySummaryGrid({ ... }: DynamicCategorySummaryGridProps) {
++ export const DynamicCategorySummaryGrid = React.forwardRef<HTMLDivElement, DynamicCategorySummaryGridProps>(
++   function DynamicCategorySummaryGrid({ ... }, ref) {
+      ...
+-   );
+- }
++   }
++ );
+```
+
+---
+
+## Files to Modify
+
+| Action | File |
+|--------|------|
+| Modify | `src/pages/ReviewPage.tsx` - Add `cn` import, remove local definition |
+| Modify | `src/components/receipt/DynamicCategorySummary.tsx` - Add `forwardRef` to components |
+
+---
+
+## Technical Details
+
+### Why This Happened
+- During the Phase 2.5 implementation, the `ReviewContent` sub-component was created using a `cn` helper
+- A local `cn` function was added at the bottom of the component for convenience
+- JavaScript `const` declarations are **not hoisted**, so calling `cn()` before it's defined causes an error
+- The app appears to be "Processing..." because React crashes during render before the UI can update
+
+### The Fix
+- Import `cn` from the existing utility file `@/lib/utils` (which is already used throughout the codebase)
+- This ensures `cn` is available at the top of the file before any component code runs
+
