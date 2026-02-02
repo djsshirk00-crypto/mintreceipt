@@ -41,7 +41,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [queryClient]);
 
   const MobileNav = () => (
-    <nav data-onboarding="nav" className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
+    <nav data-tour="nav" className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden safe-area-bottom">
       <div className="flex items-center justify-around h-16 pb-safe">
         {mobileNavItems.map(({ path, label, icon: Icon }) => (
           <Link

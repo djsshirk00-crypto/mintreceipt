@@ -83,7 +83,7 @@ export function FloatingCaptureButton() {
       )}
       
       {/* FAB Container */}
-      <div data-onboarding="fab" className="fixed bottom-20 right-4 z-40 md:hidden flex flex-col-reverse items-center gap-3">
+      <div data-tour="fab" className="fixed bottom-20 right-4 z-40 md:hidden flex flex-col-reverse items-center gap-3">
         {/* Secondary buttons - shown when expanded */}
         <div className={cn(
           'flex flex-col-reverse gap-3 transition-all duration-200',

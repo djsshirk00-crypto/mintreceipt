@@ -7,7 +7,7 @@ import { ReceiptCard } from '@/components/receipt/ReceiptCard';
 import { SpendingReports } from '@/components/receipt/SpendingReports';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Inbox, CheckSquare, AlertCircle, RefreshCw, ArrowRight } from 'lucide-react';
+import { CheckSquare, AlertCircle, RefreshCw, ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -35,9 +35,10 @@ export default function Dashboard() {
     }
   };
 
-  const inboxCount = stats?.statusCounts.inbox || 0;
+  const processingCount = stats?.statusCounts.processing || 0;
   const processedCount = stats?.statusCounts.processed || 0;
   const failedCount = stats?.statusCounts.failed || 0;
+  const pendingReviewCount = processingCount + processedCount;
 
   return (
     <AppLayout>
@@ -51,7 +52,7 @@ export default function Dashboard() {
             </p>
           </div>
           
-          {inboxCount > 0 && (
+          {processingCount > 0 && (
             <Button 
               onClick={handleProcessAll}
               disabled={isProcessing}
@@ -65,7 +66,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Process {inboxCount} Receipt{inboxCount !== 1 ? 's' : ''}
+                  Process {processingCount} Receipt{processingCount !== 1 ? 's' : ''}
                 </>
               )}
             </Button>
@@ -73,7 +74,8 @@ export default function Dashboard() {
         </div>
 
         {/* Upload zone - mobile camera capture or desktop dropzone */}
-        <div data-onboarding="upload-zone">
+        {/* data-tour attribute for onboarding highlight */}
+        <div data-tour="upload-zone">
           {isMobile ? (
             <MobileCameraCapture />
           ) : (
@@ -81,25 +83,31 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Status cards */}
-        <div data-onboarding="status-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link to="/inbox">
+        {/* Status cards - data-tour for onboarding */}
+        <div data-tour="status-cards" className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link to="/review">
             <Card className="hover:shadow-medium transition-shadow cursor-pointer">
               <CardContent className="p-5 flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/20 text-warning">
-                  <Inbox className="h-6 w-6" />
+                  {processingCount > 0 ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : (
+                    <CheckSquare className="h-6 w-6" />
+                  )}
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {statsLoading ? <Skeleton className="h-8 w-12" /> : inboxCount}
+                    {statsLoading ? <Skeleton className="h-8 w-12" /> : pendingReviewCount}
                   </p>
-                  <p className="text-sm text-muted-foreground">In Inbox</p>
+                  <p className="text-sm text-muted-foreground">
+                    {processingCount > 0 ? 'Processing...' : 'Ready for Review'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link to="/review">
+          <Link to="/transactions">
             <Card className="hover:shadow-medium transition-shadow cursor-pointer">
               <CardContent className="p-5 flex items-center gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success/20 text-success">
@@ -107,9 +115,9 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {statsLoading ? <Skeleton className="h-8 w-12" /> : processedCount}
+                    {statsLoading ? <Skeleton className="h-8 w-12" /> : stats?.statusCounts.reviewed || 0}
                   </p>
-                  <p className="text-sm text-muted-foreground">Ready for Review</p>
+                  <p className="text-sm text-muted-foreground">Reviewed</p>
                 </div>
               </CardContent>
             </Card>
@@ -130,8 +138,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Spending Reports with dynamic categories */}
-        <div data-onboarding="spending-reports">
+        {/* Spending Reports with dynamic categories - data-tour for onboarding */}
+        <div data-tour="spending-reports">
           <SpendingReports />
         </div>
 
@@ -142,7 +150,7 @@ export default function Dashboard() {
               Recent Receipts
             </h2>
             <Link 
-              to="/inbox" 
+              to="/transactions" 
               className="text-sm text-primary hover:underline flex items-center gap-1"
             >
               View all
