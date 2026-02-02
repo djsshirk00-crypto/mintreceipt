@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useReceipts, useReviewReceipt, useDeleteReceipt, useProcessReceipt, useProcessingTimeout, Receipt } from '@/hooks/useReceipts';
 import { useCategories } from '@/hooks/useCategories';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -354,8 +355,6 @@ export default function ReviewPage() {
     );
   };
 
-  // Helper for className
-  const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
 
   // Review actions shared between Dialog and Sheet
   const ReviewActions = () => (
