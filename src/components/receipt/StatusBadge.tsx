@@ -35,7 +35,7 @@ const statusConfig: Record<ReceiptStatus, {
 };
 
 export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || statusConfig.processing;
   const Icon = config.icon;
   
   const sizeClasses = size === 'sm' 
