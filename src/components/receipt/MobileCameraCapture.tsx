@@ -144,19 +144,9 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
     );
   }
 
-  // Initial state - show camera and gallery options
+  // Initial state - single upload button (camera handled by FAB)
   return (
     <>
-      {/* Camera input - triggers device camera */}
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleFileChange}
-        className="hidden"
-      />
-      
       {/* Gallery input - opens photo library / files */}
       <input
         ref={galleryInputRef}
@@ -166,45 +156,24 @@ export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
         className="hidden"
       />
       
-      <div className="grid grid-cols-2 gap-3">
-        {/* Camera button */}
-        <button
-          onClick={openCamera}
-          className={cn(
-            'flex flex-col items-center justify-center gap-2 p-6',
-            'rounded-xl border-2 border-dashed border-primary/30',
-            'bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors',
-            'cursor-pointer touch-target'
-          )}
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Camera className="h-6 w-6" />
-          </div>
-          <div className="text-center">
-            <p className="font-semibold text-foreground text-sm">Take Photo</p>
-            <p className="text-xs text-muted-foreground">Use camera</p>
-          </div>
-        </button>
-
-        {/* Gallery/Screenshot button */}
-        <button
-          onClick={openGallery}
-          className={cn(
-            'flex flex-col items-center justify-center gap-2 p-6',
-            'rounded-xl border-2 border-dashed border-muted-foreground/30',
-            'bg-muted/30 hover:bg-muted/50 active:bg-muted/70 transition-colors',
-            'cursor-pointer touch-target'
-          )}
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <Image className="h-6 w-6" />
-          </div>
-          <div className="text-center">
-            <p className="font-semibold text-foreground text-sm">Upload</p>
-            <p className="text-xs text-muted-foreground">Screenshot or PDF</p>
-          </div>
-        </button>
-      </div>
+      {/* Single upload button for screenshots and PDFs */}
+      <button
+        onClick={openGallery}
+        className={cn(
+          'w-full flex items-center justify-center gap-3 p-5',
+          'rounded-xl border-2 border-dashed border-primary/30',
+          'bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors',
+          'cursor-pointer min-h-[52px]'
+        )}
+      >
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Image className="h-5 w-5" />
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-foreground text-sm">Upload Screenshot or PDF</p>
+          <p className="text-xs text-muted-foreground">From gallery or files</p>
+        </div>
+      </button>
     </>
   );
 }

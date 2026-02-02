@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useReceipts, useReviewReceipt, useUpdateReceipt, Receipt } from '@/hooks/useReceipts';
+import { useReceipts, useReviewReceipt, useDeleteReceipt, useProcessReceipt, useProcessingTimeout, Receipt } from '@/hooks/useReceipts';
 import { useCategories } from '@/hooks/useCategories';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
@@ -9,21 +9,24 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, X, Edit2, CheckSquare, List } from 'lucide-react';
+import { Check, X, Edit2, CheckSquare, List, RefreshCw, Trash2, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineItemsDisplay } from '@/components/receipt/LineItemsDisplay';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Category, CATEGORY_CONFIG, CategoryTotals, LineItem } from '@/types/receipt';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ReviewPage() {
   const { data: dbCategories } = useCategories();
   const { data: receipts, isLoading } = useReceipts();
   const reviewReceipt = useReviewReceipt();
-  const updateReceipt = useUpdateReceipt();
+  const deleteReceipt = useDeleteReceipt();
+  const processReceipt = useProcessReceipt();
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [editedLineItems, setEditedLineItems] = useState<LineItem[] | null>(null);
   const [adjustMode, setAdjustMode] = useState(false);
@@ -33,11 +36,16 @@ export default function ReviewPage() {
     clothing_amount: 0,
     other_amount: 0,
   });
+  const isMobile = useIsMobile();
+
+  // Enable processing timeout check
+  useProcessingTimeout();
 
   // Show both processing and processed receipts (new streamlined flow)
   const processingReceipts = receipts?.filter(r => r.status === 'processing') || [];
   const processedReceipts = receipts?.filter(r => r.status === 'processed') || [];
-  const pendingReceipts = [...processingReceipts, ...processedReceipts];
+  const failedReceipts = receipts?.filter(r => r.status === 'failed') || [];
+  const pendingReceipts = [...processingReceipts, ...processedReceipts, ...failedReceipts];
   const reviewedReceipts = receipts?.filter(r => r.status === 'reviewed') || [];
 
   // Calculate totals for reviewed receipts
@@ -187,36 +195,225 @@ export default function ReviewPage() {
     setAdjustMode(false);
   };
 
+  const handleRetry = async (receipt: Receipt) => {
+    try {
+      await processReceipt.mutateAsync(receipt.id);
+      toast.success('Retrying processing...');
+    } catch (error) {
+      toast.error('Failed to retry processing');
+    }
+  };
+
+  const handleDelete = async (receipt: Receipt) => {
+    try {
+      await deleteReceipt.mutateAsync({ id: receipt.id, image_path: receipt.image_path });
+    } catch (error) {
+      // Error toast is handled in the hook
+    }
+  };
+
   const categories: Category[] = ['groceries', 'household', 'clothing', 'other'];
 
   // Check if any line items have been modified
   const hasLineItemChanges = editedLineItems && 
     JSON.stringify(editedLineItems) !== JSON.stringify(selectedReceipt?.line_items);
 
+  const closeReviewSheet = () => {
+    setSelectedReceipt(null);
+    setEditedLineItems(null);
+  };
+
+  // Review content shared between Dialog and Sheet
+  const ReviewContent = () => {
+    if (!selectedReceipt) return null;
+
+    return (
+      <div className={cn(
+        "space-y-4",
+        isMobile ? "pb-20" : ""
+      )}>
+        {/* Receipt image */}
+        <div className={isMobile ? "max-h-48 overflow-hidden rounded-lg" : ""}>
+          <ReceiptImageViewer imagePath={selectedReceipt.image_path} />
+        </div>
+
+        {/* Merchant & total info */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="font-semibold text-lg">
+              {selectedReceipt.merchant || 'Unknown Merchant'}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {selectedReceipt.receipt_date 
+                ? format(new Date(selectedReceipt.receipt_date), 'MMMM d, yyyy')
+                : format(new Date(selectedReceipt.created_at), 'MMMM d, yyyy')}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold">
+              ${Number(selectedReceipt.total_amount || 0).toFixed(2)}
+            </p>
+            {selectedReceipt.confidence_score && (
+              <p className="text-xs text-muted-foreground">
+                {Math.round(selectedReceipt.confidence_score * 100)}% confidence
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs for Line Items and Category Breakdown */}
+        <Tabs defaultValue="line-items" className="w-full">
+          <TabsList className={cn("grid w-full grid-cols-2", isMobile && "h-12")}>
+            <TabsTrigger value="line-items" className={cn("gap-1", isMobile && "min-h-[44px]")}>
+              <List className="h-4 w-4" />
+              Items
+            </TabsTrigger>
+            <TabsTrigger value="categories" className={isMobile ? "min-h-[44px]" : ""}>
+              Categories
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="line-items" className="mt-4">
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Tap a category to change it. Your corrections help the AI learn!
+              </p>
+              <LineItemsDisplay 
+                lineItems={editedLineItems} 
+                editable={true}
+                onItemCategoryChange={handleLineItemCategoryChange}
+                categories={dbCategories}
+              />
+              {hasLineItemChanges && (
+                <p className="text-xs text-primary mt-2">
+                  ✓ Category changes will be saved when you accept
+                </p>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="categories" className="space-y-3 mt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base">Category Breakdown</Label>
+              {!adjustMode && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setAdjustMode(true)}
+                  className={isMobile ? "min-h-[44px]" : ""}
+                >
+                  <Edit2 className="h-4 w-4 mr-1" />
+                  Adjust
+                </Button>
+              )}
+            </div>
+
+            {categories.map(category => {
+              const config = CATEGORY_CONFIG[category];
+              const key = `${category}_amount` as keyof typeof adjustments;
+              const value = adjustments[key];
+              const isOther = category === 'other';
+
+              const handleCategoryChange = (newValue: number) => {
+                if (isOther) {
+                  setAdjustments(prev => ({ ...prev, other_amount: newValue }));
+                } else {
+                  const total = Number(selectedReceipt.total_amount) || 0;
+                  const otherCategories = ['groceries_amount', 'household_amount', 'clothing_amount'] as const;
+                  
+                  const newAdjustments = { ...adjustments, [key]: newValue };
+                  const sumOfOthers = otherCategories.reduce((sum, k) => sum + newAdjustments[k], 0);
+                  newAdjustments.other_amount = Math.max(0, Math.round((total - sumOfOthers) * 100) / 100);
+                  
+                  setAdjustments(newAdjustments);
+                }
+              };
+
+              return (
+                <div key={category} className={cn("flex items-center gap-3", isMobile && "min-h-[52px]")}>
+                  <span className="text-xl">{config.icon}</span>
+                  <span className="flex-1 font-medium">{config.label}</span>
+                  {adjustMode ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-28"
+                      value={value}
+                      onChange={(e) => handleCategoryChange(parseFloat(e.target.value) || 0)}
+                    />
+                  ) : (
+                    <span className="font-semibold">${value.toFixed(2)}</span>
+                  )}
+                </div>
+              );
+            })}
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  };
+
+  // Helper for className
+  const cn = (...classes: (string | boolean | undefined)[]) => classes.filter(Boolean).join(' ');
+
+  // Review actions shared between Dialog and Sheet
+  const ReviewActions = () => (
+    <div className={cn(
+      "flex gap-2",
+      isMobile && "fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border safe-area-bottom"
+    )}>
+      {adjustMode ? (
+        <>
+          <Button variant="outline" onClick={() => setAdjustMode(false)} className={cn("flex-1", isMobile && "min-h-[52px]")}>
+            Cancel
+          </Button>
+          <Button onClick={handleAdjust} className={cn("flex-1", isMobile && "min-h-[52px]")}>
+            <Check className="h-4 w-4 mr-2" />
+            Save
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button variant="outline" onClick={closeReviewSheet} className={cn("flex-1", isMobile && "min-h-[52px]")}>
+            <X className="h-4 w-4 mr-2" />
+            Skip
+          </Button>
+          <Button onClick={handleAccept} className={cn("flex-1", isMobile && "min-h-[52px]")}>
+            <Check className="h-4 w-4 mr-2" />
+            {hasLineItemChanges ? 'Save' : 'Accept'}
+          </Button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <AppLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Weekly Review</h1>
-          <p className="text-muted-foreground mt-1">
-            Review and finalize your categorized receipts.
-          </p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Review</h1>
+          {!isMobile && (
+            <p className="text-muted-foreground mt-1">
+              Review and finalize your categorized receipts.
+            </p>
+          )}
         </div>
 
         {/* Summary for reviewed */}
         {reviewedTotals.total > 0 && (
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-4">
+            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">
               This Week's Spending
             </h2>
             <CategorySummaryGrid totals={reviewedTotals} />
           </section>
         )}
 
-        {/* Pending review - includes both processing and processed */}
+        {/* Pending review - includes processing, processed, and failed */}
         <section>
-          <h2 className="text-xl font-semibold text-foreground mb-4">
+          <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">
             Ready for Review ({pendingReceipts.length})
           </h2>
 
@@ -234,11 +431,46 @@ export default function ReviewPage() {
                     receipt={receipt}
                     onClick={receipt.status === 'processed' ? () => handleSelectReceipt(receipt) : undefined}
                   />
+                  {/* Processing overlay */}
                   {receipt.status === 'processing' && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg">
                       <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
                         <p className="text-sm text-muted-foreground">Processing...</p>
+                      </div>
+                    </div>
+                  )}
+                  {/* Failed overlay with retry/delete */}
+                  {receipt.status === 'failed' && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg">
+                      <div className="text-center p-4">
+                        <p className="text-sm text-destructive font-medium mb-1">
+                          {receipt.error_message || 'Processing failed'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Would you like to try again?
+                        </p>
+                        <div className="flex gap-2 justify-center">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDelete(receipt)}
+                            disabled={deleteReceipt.isPending}
+                            className="min-h-[44px]"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Delete
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => handleRetry(receipt)}
+                            disabled={processReceipt.isPending}
+                            className="min-h-[44px]"
+                          >
+                            <RefreshCw className="h-4 w-4 mr-1" />
+                            Retry
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -247,14 +479,14 @@ export default function ReviewPage() {
             </div>
           ) : (
             <Card>
-              <CardContent className="p-12 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto mb-4">
-                  <CheckSquare className="h-8 w-8 text-muted-foreground" />
+              <CardContent className="p-8 md:p-12 text-center">
+                <div className="flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-muted mx-auto mb-4">
+                  <CheckSquare className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground" />
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   All caught up!
                 </h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
+                <p className="text-muted-foreground max-w-md mx-auto text-sm md:text-base">
                   No receipts pending review. Capture a new receipt to continue tracking your spending.
                 </p>
               </CardContent>
@@ -262,162 +494,41 @@ export default function ReviewPage() {
           )}
         </section>
 
-        {/* Review Dialog */}
-        <Dialog open={!!selectedReceipt} onOpenChange={() => {
-          setSelectedReceipt(null);
-          setEditedLineItems(null);
-        }}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Review Receipt</DialogTitle>
-            </DialogHeader>
+        {/* Review Sheet for Mobile */}
+        {isMobile ? (
+          <Sheet open={!!selectedReceipt} onOpenChange={(open) => !open && closeReviewSheet()}>
+            <SheetContent side="bottom" className="h-[90vh] overflow-y-auto">
+              <SheetHeader className="pb-4">
+                <SheetTitle>Review Receipt</SheetTitle>
+              </SheetHeader>
+              <ReviewContent />
+              <ReviewActions />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          /* Review Dialog for Desktop */
+          <Dialog open={!!selectedReceipt} onOpenChange={(open) => !open && closeReviewSheet()}>
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Review Receipt</DialogTitle>
+              </DialogHeader>
 
-            {selectedReceipt && (
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Receipt image - left column */}
-                <ReceiptImageViewer imagePath={selectedReceipt.image_path} />
+              {selectedReceipt && (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Receipt image - left column */}
+                  <ReceiptImageViewer imagePath={selectedReceipt.image_path} />
 
-                {/* Receipt details - right column */}
-                <div className="space-y-6">
-                  {/* Merchant & total info */}
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {selectedReceipt.merchant || 'Unknown Merchant'}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {selectedReceipt.receipt_date 
-                        ? format(new Date(selectedReceipt.receipt_date), 'MMMM d, yyyy')
-                        : format(new Date(selectedReceipt.created_at), 'MMMM d, yyyy')}
-                    </p>
-                    <p className="text-2xl font-bold mt-2">
-                      ${Number(selectedReceipt.total_amount || 0).toFixed(2)}
-                    </p>
-                    {selectedReceipt.confidence_score && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {Math.round(selectedReceipt.confidence_score * 100)}% confidence
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Tabs for Line Items and Category Breakdown */}
-                  <Tabs defaultValue="line-items" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="line-items" className="gap-1">
-                        <List className="h-4 w-4" />
-                        Line Items
-                      </TabsTrigger>
-                      <TabsTrigger value="categories">Categories</TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="line-items" className="mt-4">
-                      <div className="space-y-2">
-                        <p className="text-xs text-muted-foreground">
-                          Click a category to change it. Your corrections help the AI learn!
-                        </p>
-                        <LineItemsDisplay 
-                          lineItems={editedLineItems} 
-                          editable={true}
-                          onItemCategoryChange={handleLineItemCategoryChange}
-                          categories={dbCategories}
-                        />
-                        {hasLineItemChanges && (
-                          <p className="text-xs text-primary mt-2">
-                            ✓ Category changes will be saved when you accept
-                          </p>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="categories" className="space-y-3 mt-4">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-base">Category Breakdown</Label>
-                        {!adjustMode && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => setAdjustMode(true)}
-                          >
-                            <Edit2 className="h-4 w-4 mr-1" />
-                            Adjust
-                          </Button>
-                        )}
-                      </div>
-
-                      {categories.map(category => {
-                        const config = CATEGORY_CONFIG[category];
-                        const key = `${category}_amount` as keyof typeof adjustments;
-                        const value = adjustments[key];
-                        const isOther = category === 'other';
-
-                        const handleCategoryChange = (newValue: number) => {
-                          if (isOther) {
-                            setAdjustments(prev => ({ ...prev, other_amount: newValue }));
-                          } else {
-                            const total = Number(selectedReceipt.total_amount) || 0;
-                            const otherCategories = ['groceries_amount', 'household_amount', 'clothing_amount'] as const;
-                            
-                            const newAdjustments = { ...adjustments, [key]: newValue };
-                            const sumOfOthers = otherCategories.reduce((sum, k) => sum + newAdjustments[k], 0);
-                            newAdjustments.other_amount = Math.max(0, Math.round((total - sumOfOthers) * 100) / 100);
-                            
-                            setAdjustments(newAdjustments);
-                          }
-                        };
-
-                        return (
-                          <div key={category} className="flex items-center gap-3">
-                            <span className="text-xl">{config.icon}</span>
-                            <span className="flex-1 font-medium">{config.label}</span>
-                            {adjustMode ? (
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                className="w-28"
-                                value={value}
-                                onChange={(e) => handleCategoryChange(parseFloat(e.target.value) || 0)}
-                              />
-                            ) : (
-                              <span className="font-semibold">${value.toFixed(2)}</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </TabsContent>
-                  </Tabs>
-              </div>
-            </div>
-            )}
-
-            <DialogFooter className="gap-2">
-              {adjustMode ? (
-                <>
-                  <Button variant="outline" onClick={() => setAdjustMode(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAdjust}>
-                    <Check className="h-4 w-4 mr-2" />
-                    Save Adjustments
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={() => {
-                    setSelectedReceipt(null);
-                    setEditedLineItems(null);
-                  }}>
-                    <X className="h-4 w-4 mr-2" />
-                    Skip
-                  </Button>
-                  <Button onClick={handleAccept}>
-                    <Check className="h-4 w-4 mr-2" />
-                    {hasLineItemChanges ? 'Save & Accept' : 'Accept'}
-                  </Button>
-                </>
+                  {/* Receipt details - right column */}
+                  <ReviewContent />
+                </div>
               )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+
+              <DialogFooter>
+                <ReviewActions />
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </AppLayout>
   );
