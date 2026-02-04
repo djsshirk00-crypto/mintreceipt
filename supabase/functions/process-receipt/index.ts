@@ -159,11 +159,28 @@ serve(async (req) => {
       throw new Error(`Failed to download image: ${downloadError?.message}`);
     }
 
-    // Convert file to base64
+    // Check file size - limit to 4MB to prevent memory issues
+    const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+    if (imageData.size > MAX_SIZE) {
+      throw new Error('Image is too large. Please upload images under 4MB.');
+    }
+
+    // Convert file to base64 using efficient chunked encoding
     const arrayBuffer = await imageData.arrayBuffer();
-    const base64Image = btoa(
-      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    );
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Use chunked base64 encoding to reduce memory pressure
+    function uint8ToBase64(bytes: Uint8Array): string {
+      const CHUNK_SIZE = 32768; // 32KB chunks
+      let binary = '';
+      for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+        const chunk = bytes.subarray(i, Math.min(i + CHUNK_SIZE, bytes.length));
+        binary += String.fromCharCode.apply(null, Array.from(chunk));
+      }
+      return btoa(binary);
+    }
+    
+    const base64Image = uint8ToBase64(uint8Array);
     
     // Detect MIME type from file extension
     const filePath = receipt.image_path.toLowerCase();
@@ -178,7 +195,7 @@ serve(async (req) => {
       mimeType = 'application/pdf';
     }
     
-    console.log(`Processing file with MIME type: ${mimeType}`);
+    console.log(`Processing file with MIME type: ${mimeType}, size: ${uint8Array.length} bytes`);
 
     // Call Lovable AI to process the receipt
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
