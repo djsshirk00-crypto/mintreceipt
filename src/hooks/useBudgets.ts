@@ -148,7 +148,7 @@ export function useTotalBudgetSummary(month: number, year: number) {
   
   return useQuery({
     queryKey: ['budget-summary', month, year, budgetsWithSpending, incomeCategories, expenseCategories],
-    queryFn: () => {
+    queryFn: async () => {
       if (!budgetsWithSpending || !incomeCategories || !expenseCategories) return null;
       
       const incomeCategoryIds = new Set(incomeCategories.map(c => c.id));
@@ -159,9 +159,24 @@ export function useTotalBudgetSummary(month: number, year: number) {
       
       const totalIncome = incomeBudgets.reduce((sum, b) => sum + b.amount, 0);
       const totalExpenses = expenseBudgets.reduce((sum, b) => sum + b.amount, 0);
-      const totalSpent = expenseBudgets.reduce((sum, b) => sum + b.spent, 0);
+      
+      // Calculate totalSpent from ALL receipt totals (absolute truth)
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 0);
+      
+      const { data: receipts, error } = await supabase
+        .from('receipts')
+        .select('total_amount')
+        .in('status', ['processed', 'reviewed'])
+        .gte('receipt_date', startDate.toISOString().split('T')[0])
+        .lte('receipt_date', endDate.toISOString().split('T')[0]);
+      
+      if (error) throw error;
+      
+      const totalSpent = receipts?.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0) || 0;
+      
       const toBeAssigned = totalIncome - totalExpenses;
-      const overallPercentage = totalExpenses > 0 ? (totalSpent / totalExpenses) * 100 : 0;
+      const overallPercentage = totalIncome > 0 ? (totalSpent / totalIncome) * 100 : 0;
       
       return {
         totalIncome,

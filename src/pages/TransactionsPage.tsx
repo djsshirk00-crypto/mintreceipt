@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TransactionEditSheet } from '@/components/transactions/TransactionEditSheet';
+import { TransactionRow } from '@/components/transactions/TransactionRow';
 import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { Search, X, Receipt as ReceiptIcon, Filter, Calendar } from 'lucide-react';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday } from 'date-fns';
@@ -136,16 +137,7 @@ export default function TransactionsPage() {
     return category?.name || categoryFilter;
   };
 
-  // Get primary category for a receipt
-  const getPrimaryCategory = (receipt: Receipt) => {
-    const amounts = [
-      { name: 'Groceries', amount: receipt.groceries_amount, icon: '🥬' },
-      { name: 'Household', amount: receipt.household_amount, icon: '🏠' },
-      { name: 'Clothing', amount: receipt.clothing_amount, icon: '👕' },
-      { name: 'Other', amount: receipt.other_amount, icon: '📦' },
-    ];
-    return amounts.reduce((max, curr) => curr.amount > max.amount ? curr : max, amounts[3]);
-  };
+  // Get primary category is no longer needed - TransactionRow handles this
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['receipts'] });
@@ -274,43 +266,13 @@ export default function TransactionsPage() {
         </div>
       ) : filteredTransactions.length > 0 ? (
         <div className="space-y-2">
-          {filteredTransactions.map(receipt => {
-            const primaryCategory = getPrimaryCategory(receipt);
-            return (
-              <Card 
-                key={receipt.id} 
-                className="cursor-pointer hover:bg-muted/50 transition-colors active:scale-[0.99] min-h-[52px]"
-                onClick={() => setSelectedTransaction(receipt)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-lg flex-shrink-0">
-                      {primaryCategory.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
-                        {receipt.merchant || 'Unknown Merchant'}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {receipt.receipt_date 
-                          ? format(parseISO(receipt.receipt_date), 'MMM d, yyyy')
-                          : format(parseISO(receipt.created_at), 'MMM d, yyyy')
-                        }
-                      </p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-semibold">
-                        ${Number(receipt.total_amount || 0).toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {primaryCategory.name}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {filteredTransactions.map(receipt => (
+            <TransactionRow 
+              key={receipt.id}
+              receipt={receipt}
+              onEdit={setSelectedTransaction}
+            />
+          ))}
         </div>
       ) : (
         <Card>
