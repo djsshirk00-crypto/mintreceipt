@@ -12,6 +12,7 @@ import TransactionsPage from "./pages/TransactionsPage";
 import ReviewPage from "./pages/ReviewPage";
 import ReviewedReceiptsPage from "./pages/ReviewedReceiptsPage";
 import BudgetPage from "./pages/BudgetPage";
+import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/reviewed" element={<AuthGuard><ReviewedReceiptsPage /></AuthGuard>} />
             <Route path="/budget" element={<AuthGuard><BudgetPage /></AuthGuard>} />
             <Route path="/categories" element={<AuthGuard><BudgetPage /></AuthGuard>} />
+            <Route path="/reports" element={<AuthGuard><ReportsPage /></AuthGuard>} />
             <Route path="/settings" element={<AuthGuard><SettingsPage /></AuthGuard>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

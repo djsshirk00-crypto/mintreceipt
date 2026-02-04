@@ -8,7 +8,8 @@ import {
   RotateCcw, 
   LogOut,
   ChevronRight,
-  User
+  User,
+  BarChart3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
@@ -99,6 +100,11 @@ export function MenuDrawer({ trigger, open, onOpenChange }: MenuDrawerProps) {
             icon={<Target className="h-5 w-5" />} 
             label="Budget & Categories"
             onClick={() => handleMenuItemClick('/budget')}
+          />
+          <MenuItem 
+            icon={<BarChart3 className="h-5 w-5" />} 
+            label="Reports"
+            onClick={() => handleMenuItemClick('/reports')}
           />
           <MenuItem 
             icon={<Settings className="h-5 w-5" />} 
