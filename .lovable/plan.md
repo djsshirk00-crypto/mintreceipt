@@ -1,180 +1,280 @@
 
-# Fix: Mobile File Upload Flow
 
-## Problem Summary
+# Enhanced Mobile Dashboard with Clickable Analytics
 
-The "Upload Screenshot or PDF" button on mobile shows an **unnecessary preview screen** after file selection, causing users to get stuck. The user must tap "Use Photo" to actually upload, but:
+## Vision
 
-1. This extra step is confusing and breaks the expected flow
-2. PDFs cannot be previewed as images (blank/broken preview)
-3. Users expect immediate upload like the FAB camera button provides
-
-| Current Flow (Broken) | Expected Flow (Fixed) |
-|----------------------|----------------------|
-| Tap "Upload Screenshot or PDF" | Tap "Upload Screenshot or PDF" |
-| Select file | Select file |
-| **See blank/broken preview screen** | **Immediately upload** |
-| Must tap "Use Photo" | Show loading indicator |
-| Then navigates to Review | Navigate to Review |
+Transform the Dashboard into a **financial command center** where every element is tappable, leading to deeper insights. Add an **Income vs Spend Visualization** inspired by your reference images - featuring period toggles (Week/Month/Quarter/Year), visual bar charts comparing income and spending, and expandable summary rows.
 
 ---
 
-## Solution
+## Key Enhancements
 
-Refactor `MobileCameraCapture` to upload **immediately** after file selection, matching the behavior of `FloatingCaptureButton` and `ReceiptUploader`. Remove the preview screen entirely.
+### 1. Every Dashboard Element is Clickable
 
----
+| Element | Tap Action | Destination |
+|---------|------------|-------------|
+| Financial Pulse (Income) | View income breakdown | `/budget?filter=income` |
+| Financial Pulse (Spent) | View spending details | `/transactions?range=this-month` |
+| Financial Pulse (Remaining) | View budget status | `/budget` |
+| Progress Bar | View overall budget | `/budget` |
+| Quick Actions - Add Receipt | Open file picker | Upload flow |
+| Quick Actions - Manual Entry | Open form | Manual transaction form |
+| Pending Review Alert | Review receipts | `/review` |
+| Category Cards | View category transactions | `/transactions?category=X` |
+| "View Reports" link | Full analytics | `/reports` |
 
-## Technical Changes
+### 2. Income vs Spend Visualization (New Component)
 
-### File: `src/components/receipt/MobileCameraCapture.tsx`
-
-**Remove:**
-- The preview screen state (`capturedFile`, `previewUrl`)
-- The preview UI (full-screen modal with Retake/Use Photo buttons)
-- The two-step flow
-
-**Add:**
-- Immediate upload on file selection
-- Loading state on the button itself
-- Toast feedback for success/failure
-- Direct navigation to `/review` after upload
-
-### New Component Flow
+Based on your reference images, add a **SpendingOverviewCard** widget:
 
 ```text
-┌──────────────────────────────────────┐
-│  📤  Upload Screenshot or PDF        │  ← User taps
-└──────────────────────────────────────┘
-                  ↓
-        [File picker opens]
-                  ↓
-        User selects file & taps OK
-                  ↓
-┌──────────────────────────────────────┐
-│  ⟳  Uploading...                     │  ← Button shows spinner
-└──────────────────────────────────────┘
-                  ↓
-        Upload completes (1-2 seconds)
-                  ↓
-        Toast: "Receipt uploaded!"
-                  ↓
-        Navigate to /review
+┌─────────────────────────────────────────────────┐
+│                                                 │
+│   [ Week ] [ Month ] [ Quarter ] [ Year ]       │  ← Period toggles
+│                                                 │
+│   ┌───┐  ┌───┐  ┌───┐  ┌───┐  ┌───┐  ┌───┐    │
+│   │   │  │ ■ │  │ ■ │  │   │  │   │  │   │    │  ← Year bars
+│   │   │  │ ■ │  │ ■ │  │   │  │   │  │   │    │    (Income solid,
+│   └───┘  └───┘  └───┘  └───┘  └───┘  └───┘    │     Spend dotted)
+│   2020   2021   2022   2023   2024   2025      │
+│                                                 │
+│   ● Income  ⬚ Total Spend                      │  ← Legend
+│                                                 │
+├─────────────────────────────────────────────────┤
+│  💰 Income            $3,200         →         │  ← Clickable rows
+├─────────────────────────────────────────────────┤
+│  💸 Total Spend       $1,847         ▼         │  ← Expandable
+├─────────────────────────────────────────────────┤
+│  ⊖ Net Income         $1,353         ⓘ         │  ← Color coded
+└─────────────────────────────────────────────────┘
 ```
 
-### Implementation
+**Features:**
+- Period selector: Week / Month / Quarter / Year
+- Horizontal scrollable bar chart showing income vs spend per period
+- Clickable summary rows:
+  - **Income** → navigates to `/budget?filter=income`
+  - **Total Spend** → expands to show category breakdown, or navigates to `/transactions`
+  - **Net Income** → shows tooltip with calculation
+- Color-coded net income (green if positive, red if negative)
+
+### 3. Dashboard Location
+
+Add the SpendingOverviewCard **below the Financial Pulse** on the Dashboard, making it the primary data visualization users see. Move the detailed charts (weekly/monthly trends) to the Reports page.
+
+---
+
+## New Dashboard Structure
+
+```text
+┌─────────────────────────────────────────────────┐
+│  Dashboard                               [☰]   │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  ┌────────── Financial Pulse ──────────┐       │
+│  │  Income     Spent      Left         │       │  ← All 3 tappable
+│  │  $3,200     $1,847     $1,353       │       │
+│  │  [■■■■■■■■■■░░░░░░░░] 58%           │       │  ← Progress tappable
+│  └─────────────────────────────────────┘       │
+│                                                 │
+│  ┌─────── Quick Actions ───────────────┐       │
+│  │  📤 Add Receipt    ✏️ Manual Entry  │       │
+│  └─────────────────────────────────────┘       │
+│                                                 │
+│  ┌─────── Pending Alert ───────────────┐       │
+│  │  ⚠️ 2 receipts ready for review  →  │       │  ← Tappable
+│  └─────────────────────────────────────┘       │
+│                                                 │
+│  ┌─────── Spending Overview ───────────┐       │  ← NEW COMPONENT
+│  │  [Week] [Month] [Quarter] [Year]    │       │
+│  │  📊 Bar chart (scrollable)          │       │
+│  │  ─────────────────────────────────  │       │
+│  │  💰 Income         $3,200      →    │       │  ← Clickable
+│  │  💸 Total Spend    $1,847      ▼    │       │  ← Expandable
+│  │  ⊖ Net Income      $1,353      ⓘ    │       │
+│  └─────────────────────────────────────┘       │
+│                                                 │
+│  Spending by Category  [View Reports →] [▼]    │  ← Collapsible
+│  ┌─────────────────────────────────────┐       │
+│  │ 🥬 Groceries    $450         →      │       │  ← All clickable
+│  │ 🏠 Household    $320         →      │       │
+│  └─────────────────────────────────────┘       │
+│                                                 │
+├─────────────────────────────────────────────────┤
+│  🏠 Home │ 📋 Trans │ ✓ Review │ 💰 Budget     │
+└─────────────────────────────────────────────────┘
+```
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/dashboard/FinancialPulse.tsx` | Create | Income/Spent/Remaining with click handlers |
+| `src/components/dashboard/QuickActions.tsx` | Create | Upload + Manual entry buttons |
+| `src/components/dashboard/PendingReviewAlert.tsx` | Create | Alert card linking to review |
+| `src/components/dashboard/SpendingOverviewCard.tsx` | Create | Income vs Spend visualization |
+| `src/components/dashboard/CategoryBreakdownList.tsx` | Create | Collapsible clickable categories |
+| `src/pages/Dashboard.tsx` | Modify | Compose new components |
+| `src/pages/ReportsPage.tsx` | Create | Move trend charts here |
+| `src/components/layout/MenuDrawer.tsx` | Modify | Add Reports link |
+| `src/App.tsx` | Modify | Add /reports route |
+| `src/hooks/useSpendingOverview.ts` | Create | Hook for period-based Income/Spend data |
+
+---
+
+## Technical Details
+
+### SpendingOverviewCard Component
 
 ```tsx
-export function MobileCameraCapture({ onClose }: MobileCameraCaptureProps) {
-  const [uploading, setUploading] = useState(false);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
-  const uploadReceipt = useUploadReceipt();
-  const navigate = useNavigate();
+// Period selection state
+const [period, setPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
 
-  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+// Hook fetches income and spending for selected period
+const { data } = useSpendingOverview(period);
 
-    setUploading(true);
-    try {
-      await uploadReceipt.mutateAsync(file);
-      
-      // Haptic feedback
-      if ('vibrate' in navigator) {
-        navigator.vibrate(50);
-      }
-      
-      toast.success('Receipt uploaded! Processing...');
-      onClose?.();
-      navigate('/review');
-    } catch (error) {
-      // Error handled in mutation hook
-    } finally {
-      setUploading(false);
-      // Reset input for repeat selections
-      if (galleryInputRef.current) {
-        galleryInputRef.current.value = '';
-      }
-    }
-  }, [uploadReceipt, onClose, navigate]);
+// Clickable rows
+const handleIncomeClick = () => navigate('/budget?filter=income');
+const handleSpendClick = () => setExpanded(!expanded); // Or navigate
+const handleNetInfoClick = () => toast.info('Net Income = Income - Total Spend');
+```
 
-  const openGallery = useCallback(() => {
-    galleryInputRef.current?.click();
-  }, []);
+### useSpendingOverview Hook
 
-  // Single button - no preview screen
-  return (
-    <>
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/*,.pdf"
-        onChange={handleFileChange}
-        className="hidden"
-        disabled={uploading}
-      />
-      
-      <button
-        onClick={openGallery}
-        disabled={uploading}
-        className={cn(
-          'w-full flex items-center justify-center gap-3 p-4',
-          'rounded-xl border-2 border-dashed border-primary/30',
-          'bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors',
-          'cursor-pointer min-h-[52px]',
-          uploading && 'opacity-70 cursor-wait'
-        )}
-      >
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground flex-shrink-0">
-          {uploading ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Image className="h-5 w-5" />
-          )}
-        </div>
-        <div className="text-left">
-          <p className="font-semibold text-foreground text-sm">
-            {uploading ? 'Uploading...' : 'Upload Screenshot or PDF'}
-          </p>
-          {!uploading && (
-            <p className="text-xs text-muted-foreground">From gallery or files</p>
-          )}
-        </div>
-      </button>
-    </>
-  );
-}
+```tsx
+// Fetches aggregated data based on period
+// For 'year': returns last 5-6 years of data
+// For 'quarter': returns last 4-8 quarters
+// For 'month': returns last 6-12 months  
+// For 'week': returns last 8 weeks
+
+return useQuery({
+  queryKey: ['spending-overview', period],
+  queryFn: async () => {
+    // Calculate date ranges based on period
+    // Fetch income (from budgets where category type = 'income')
+    // Fetch spending (from receipts)
+    // Return { periods: [...], totalIncome, totalSpend, netIncome }
+  }
+});
+```
+
+### FinancialPulse with Click Handlers
+
+```tsx
+// Each metric is wrapped in a Link or button
+<Link to={`/budget?filter=income`}>
+  <MetricCard label="Income" value={income} />
+</Link>
+
+<Link to={`/transactions?range=this-month`}>
+  <MetricCard label="Spent" value={spent} />
+</Link>
+
+<Link to="/budget">
+  <MetricCard label="Left" value={remaining} health={healthColor} />
+</Link>
+
+// Progress bar also clickable
+<Link to="/budget" className="block">
+  <Progress value={percentUsed} className="cursor-pointer" />
+</Link>
+```
+
+### CategoryBreakdownList with Click Navigation
+
+```tsx
+// Each category card navigates to filtered transactions
+const handleCategoryClick = (category: CategorySpending) => {
+  const params = new URLSearchParams();
+  params.set('category', category.categoryName.toLowerCase());
+  params.set('from', format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  params.set('to', format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  navigate(`/transactions?${params.toString()}`);
+};
 ```
 
 ---
 
-## Defensive Handling
+## Implementation Phases
 
-| Scenario | Handling |
-|----------|----------|
-| User cancels file picker | `file` is undefined → early return, no action |
-| Empty file array | Same as cancel → early return |
-| Upload fails | Error toast shown by `useUploadReceipt` hook |
-| Permission denied | Browser handles this before our code runs |
-| PDF selected | Works the same as images - no preview needed |
-| Multiple files | Currently single file, but could be extended |
+### Phase 1: Core Dashboard Components
+1. Create `FinancialPulse.tsx` with click handlers
+2. Create `QuickActions.tsx` with upload + manual entry
+3. Create `PendingReviewAlert.tsx` with navigation
+4. Update `Dashboard.tsx` to use new components
+
+### Phase 2: Spending Overview Visualization
+1. Create `useSpendingOverview.ts` hook
+2. Create `SpendingOverviewCard.tsx` with:
+   - Period toggle buttons
+   - Horizontal bar chart
+   - Clickable summary rows
+3. Integrate into Dashboard
+
+### Phase 3: Category Breakdown Enhancement
+1. Create `CategoryBreakdownList.tsx` (collapsible, clickable)
+2. Add "View Reports" link
+3. Each category navigates to filtered transactions
+
+### Phase 4: Reports Page
+1. Create `/reports` route
+2. Move trend charts from SpendingReports
+3. Add link in MenuDrawer
 
 ---
 
-## Files to Modify
+## Navigation Flow Diagram
 
-| File | Change |
-|------|--------|
-| `src/components/receipt/MobileCameraCapture.tsx` | Remove preview screen, upload immediately on file selection |
+```text
+Dashboard
+├── Financial Pulse
+│   ├── Income → /budget?filter=income
+│   ├── Spent → /transactions?range=this-month
+│   └── Left → /budget
+│
+├── Quick Actions
+│   ├── Add Receipt → File picker → /review
+│   └── Manual Entry → Form dialog
+│
+├── Pending Alert → /review
+│
+├── Spending Overview
+│   ├── Income row → /budget?filter=income
+│   ├── Spend row → Expand OR /transactions
+│   └── Net Income → Tooltip
+│
+└── Category Cards → /transactions?category=X
+
+MenuDrawer
+└── Reports → /reports (trend charts)
+```
 
 ---
 
-## Acceptance Criteria
+## Mobile Considerations
 
-- Selecting a file uploads immediately (within 1-2 seconds)
-- User is taken directly to Review page
-- No blank screens or intermediate modals
-- Button shows loading indicator during upload
-- Toast confirms upload success
-- Works for JPG, PNG, and PDF
-- Works consistently on Android and iOS mobile browsers
+- All tap targets minimum 52px height
+- Cards have `active:scale-[0.98]` feedback
+- Collapsible sections reduce scroll depth
+- Bottom nav remains fixed with 4 tabs
+- Charts use horizontal scroll for many data points
+- Period toggle uses pill buttons for easy thumb reach
+
+---
+
+## Summary
+
+This plan creates a **fully interactive dashboard** where:
+
+1. **Every number is tappable** - users can drill down into any metric
+2. **Income vs Spend visualization** prominently displays financial health
+3. **Period toggles** allow viewing data by week, month, quarter, or year
+4. **Collapsible sections** reduce information overload
+5. **Reports page** houses detailed analytics for power users
+
+The design follows the visual language from your reference images while integrating seamlessly with MintReceipt's existing "calm financial" aesthetic.
+
