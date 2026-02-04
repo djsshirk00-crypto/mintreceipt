@@ -1,301 +1,218 @@
 
 
-# Enhanced Mobile Dashboard with Clickable Analytics
+# Enable Line Item Editing in Transaction Edit Sheet
 
-## Vision
+## Overview
 
-Transform the Dashboard into a **financial command center** where every element is tappable, leading to deeper insights. Add an **Income vs Spend Visualization** inspired by your reference images - featuring period toggles (Week/Month/Quarter/Year), visual bar charts comparing income and spending, and expandable summary rows.
-
----
-
-## Key Enhancements
-
-### 1. Every Dashboard Element is Clickable
-
-| Element | Tap Action | Destination |
-|---------|------------|-------------|
-| Financial Pulse (Income) | View income breakdown | `/budget?filter=income` |
-| Financial Pulse (Spent) | View spending details | `/transactions?range=this-month` |
-| Financial Pulse (Remaining) | View budget status | `/budget` |
-| Progress Bar | View overall budget | `/budget` |
-| Quick Actions - Add Receipt | Open file picker | Upload flow |
-| Quick Actions - Manual Entry | Open form | Manual transaction form |
-| Pending Review Alert | Review receipts | `/review` |
-| Category Cards | View category transactions | `/transactions?category=X` |
-| "View Reports" link | Full analytics | `/reports` |
-
-### 2. Income vs Spend Visualization (New Component)
-
-Based on your reference images, add a **SpendingOverviewCard** widget:
-
-```text
-┌─────────────────────────────────────────────────┐
-│                                                 │
-│   [ Week ] [ Month ] [ Quarter ] [ Year ]       │  ← Period toggles
-│                                                 │
-│   ┌───┐  ┌───┐  ┌───┐  ┌───┐  ┌───┐  ┌───┐    │
-│   │   │  │ ■ │  │ ■ │  │   │  │   │  │   │    │  ← Year bars
-│   │   │  │ ■ │  │ ■ │  │   │  │   │  │   │    │    (Income solid,
-│   └───┘  └───┘  └───┘  └───┘  └───┘  └───┘    │     Spend dotted)
-│   2020   2021   2022   2023   2024   2025      │
-│                                                 │
-│   ● Income  ⬚ Total Spend                      │  ← Legend
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  💰 Income            $3,200         →         │  ← Clickable rows
-├─────────────────────────────────────────────────┤
-│  💸 Total Spend       $1,847         ▼         │  ← Expandable
-├─────────────────────────────────────────────────┤
-│  ⊖ Net Income         $1,353         ⓘ         │  ← Color coded
-└─────────────────────────────────────────────────┘
-```
-
-**Features:**
-- Period selector: Week / Month / Quarter / Year
-- Horizontal scrollable bar chart showing income vs spend per period
-- Clickable summary rows:
-  - **Income** → navigates to `/budget?filter=income`
-  - **Total Spend** → expands to show category breakdown, or navigates to `/transactions`
-  - **Net Income** → shows tooltip with calculation
-- Color-coded net income (green if positive, red if negative)
-
-### 3. Dashboard Location
-
-Add the SpendingOverviewCard **below the Financial Pulse** on the Dashboard, making it the primary data visualization users see. Move the detailed charts (weekly/monthly trends) to the Reports page.
+Add the ability to view and edit individual line items when editing a transaction from the Transactions page, matching the experience users have during the initial receipt review.
 
 ---
 
-## New Dashboard Structure
+## Current vs Proposed
 
-```text
-┌─────────────────────────────────────────────────┐
-│  Dashboard                               [☰]   │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ┌────────── Financial Pulse ──────────┐       │
-│  │  Income     Spent      Left         │       │  ← All 3 tappable
-│  │  $3,200     $1,847     $1,353       │       │
-│  │  [■■■■■■■■■■░░░░░░░░] 58%           │       │  ← Progress tappable
-│  └─────────────────────────────────────┘       │
-│                                                 │
-│  ┌─────── Quick Actions ───────────────┐       │
-│  │  📤 Add Receipt    ✏️ Manual Entry  │       │
-│  └─────────────────────────────────────┘       │
-│                                                 │
-│  ┌─────── Pending Alert ───────────────┐       │
-│  │  ⚠️ 2 receipts ready for review  →  │       │  ← Tappable
-│  └─────────────────────────────────────┘       │
-│                                                 │
-│  ┌─────── Spending Overview ───────────┐       │  ← NEW COMPONENT
-│  │  [Week] [Month] [Quarter] [Year]    │       │
-│  │  📊 Bar chart (scrollable)          │       │
-│  │  ─────────────────────────────────  │       │
-│  │  💰 Income         $3,200      →    │       │  ← Clickable
-│  │  💸 Total Spend    $1,847      ▼    │       │  ← Expandable
-│  │  ⊖ Net Income      $1,353      ⓘ    │       │
-│  └─────────────────────────────────────┘       │
-│                                                 │
-│  Spending by Category  [View Reports →] [▼]    │  ← Collapsible
-│  ┌─────────────────────────────────────┐       │
-│  │ 🥬 Groceries    $450         →      │       │  ← All clickable
-│  │ 🏠 Household    $320         →      │       │
-│  └─────────────────────────────────────┘       │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  🏠 Home │ 📋 Trans │ ✓ Review │ 💰 Budget     │
-└─────────────────────────────────────────────────┘
-```
+| Current | Proposed |
+|---------|----------|
+| Can only edit total amount | Can edit individual line items |
+| Single category for entire receipt | Per-item category selection |
+| No line items visible | Line items displayed in a tab |
+| Category changes don't affect line items | Line item changes recalculate category totals |
 
 ---
 
-## Files to Create/Modify
+## Changes Required
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/dashboard/FinancialPulse.tsx` | Create | Income/Spent/Remaining with click handlers |
-| `src/components/dashboard/QuickActions.tsx` | Create | Upload + Manual entry buttons |
-| `src/components/dashboard/PendingReviewAlert.tsx` | Create | Alert card linking to review |
-| `src/components/dashboard/SpendingOverviewCard.tsx` | Create | Income vs Spend visualization |
-| `src/components/dashboard/CategoryBreakdownList.tsx` | Create | Collapsible clickable categories |
-| `src/pages/Dashboard.tsx` | Modify | Compose new components |
-| `src/pages/ReportsPage.tsx` | Create | Move trend charts here |
-| `src/components/layout/MenuDrawer.tsx` | Modify | Add Reports link |
-| `src/App.tsx` | Modify | Add /reports route |
-| `src/hooks/useSpendingOverview.ts` | Create | Hook for period-based Income/Spend data |
+### File: `src/components/transactions/TransactionEditSheet.tsx`
+
+**Add Line Items Editing:**
+
+1. **Import additional dependencies:**
+   - `LineItemsDisplay` component
+   - `Tabs`, `TabsContent`, `TabsList`, `TabsTrigger` from UI
+   - `LineItem`, `Category`, `CATEGORY_CONFIG` from types
+   - `List` icon from lucide-react
+
+2. **Add state for line items:**
+   - `editedLineItems` - tracks modified line items
+   - Initialize from `receipt.line_items` when receipt changes
+
+3. **Add helper functions:**
+   - `recalculateCategoryTotals()` - sums amounts by category from line items
+   - `handleLineItemCategoryChange()` - updates a single item's category and recalculates totals
+   - `saveLineItemHistory()` - saves edited items for AI learning (same logic as ReviewPage)
+
+4. **Update UI structure:**
+   - Add Tabs component with "Details" and "Line Items" tabs
+   - Details tab: existing merchant, date, amount, category fields
+   - Line Items tab: `LineItemsDisplay` with `editable={true}`
+   - Show message when line items have been modified
+
+5. **Update handleSave:**
+   - If line items were edited, save them to the receipt
+   - Recalculate category amounts from line items
+   - Save to line_item_history for AI learning
 
 ---
 
-## Technical Details
+## Detailed Implementation
 
-### SpendingOverviewCard Component
+### State Changes
 
 ```tsx
-// Period selection state
-const [period, setPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+// Add to component state
+const [editedLineItems, setEditedLineItems] = useState<LineItem[] | null>(null);
 
-// Hook fetches income and spending for selected period
-const { data } = useSpendingOverview(period);
-
-// Clickable rows
-const handleIncomeClick = () => navigate('/budget?filter=income');
-const handleSpendClick = () => setExpanded(!expanded); // Or navigate
-const handleNetInfoClick = () => toast.info('Net Income = Income - Total Spend');
+// In useEffect when receipt changes
+setEditedLineItems(receipt?.line_items ? [...receipt.line_items] : null);
 ```
 
-### useSpendingOverview Hook
+### Helper Functions
 
 ```tsx
-// Fetches aggregated data based on period
-// For 'year': returns last 5-6 years of data
-// For 'quarter': returns last 4-8 quarters
-// For 'month': returns last 6-12 months  
-// For 'week': returns last 8 weeks
+// Recalculate category totals from line items
+const recalculateCategoryTotals = (items: LineItem[]) => {
+  const totals = { groceries_amount: 0, household_amount: 0, clothing_amount: 0, other_amount: 0 };
+  items.forEach(item => {
+    const key = `${item.category}_amount` as keyof typeof totals;
+    if (key in totals) {
+      totals[key] += item.amount;
+    }
+  });
+  return totals;
+};
 
-return useQuery({
-  queryKey: ['spending-overview', period],
-  queryFn: async () => {
-    // Calculate date ranges based on period
-    // Fetch income (from budgets where category type = 'income')
-    // Fetch spending (from receipts)
-    // Return { periods: [...], totalIncome, totalSpend, netIncome }
-  }
-});
-```
+// Handle category change for a line item
+const handleLineItemCategoryChange = (index: number, newCategory: string) => {
+  if (!editedLineItems) return;
+  
+  const updated = [...editedLineItems];
+  updated[index] = { ...updated[index], category: newCategory as Category };
+  setEditedLineItems(updated);
+};
 
-### FinancialPulse with Click Handlers
-
-```tsx
-// Each metric is wrapped in a Link or button
-<Link to={`/budget?filter=income`}>
-  <MetricCard label="Income" value={income} />
-</Link>
-
-<Link to={`/transactions?range=this-month`}>
-  <MetricCard label="Spent" value={spent} />
-</Link>
-
-<Link to="/budget">
-  <MetricCard label="Left" value={remaining} health={healthColor} />
-</Link>
-
-// Progress bar also clickable
-<Link to="/budget" className="block">
-  <Progress value={percentUsed} className="cursor-pointer" />
-</Link>
-```
-
-### CategoryBreakdownList with Click Navigation
-
-```tsx
-// Each category card navigates to filtered transactions
-const handleCategoryClick = (category: CategorySpending) => {
-  const params = new URLSearchParams();
-  params.set('category', category.categoryName.toLowerCase());
-  params.set('from', format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  params.set('to', format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-  navigate(`/transactions?${params.toString()}`);
+// Save line items to history for AI learning
+const saveLineItemHistory = async (items: LineItem[]) => {
+  // Same implementation as ReviewPage
 };
 ```
 
----
+### Updated Save Logic
 
-## Implementation Phases
+```tsx
+const handleSave = async () => {
+  if (!receipt) return;
 
-### Phase 1: Core Dashboard Components ✅ COMPLETED
-1. ✅ Create `FinancialPulse.tsx` with click handlers
-2. ✅ Create `QuickActions.tsx` with upload + manual entry
-3. ✅ Create `PendingReviewAlert.tsx` with navigation
-4. ✅ Update `Dashboard.tsx` to use new components
+  const lineItemsChanged = editedLineItems && 
+    JSON.stringify(editedLineItems) !== JSON.stringify(receipt.line_items);
 
-### Phase 2: Spending Overview Visualization ✅ COMPLETED
-1. ✅ Create `useSpendingOverview.ts` hook
-2. ✅ Create `SpendingOverviewCard.tsx` with:
-   - Period toggle buttons
-   - Horizontal bar chart
-   - Clickable summary rows
-3. ✅ Integrate into Dashboard
+  let categoryAmounts;
+  let lineItemsToSave = undefined;
 
-### Phase 3: Category Breakdown Enhancement ✅ COMPLETED
-1. ✅ Create `CategoryBreakdownList.tsx` (collapsible, clickable)
-2. ✅ Add "View Reports" link
-3. ✅ Each category navigates to filtered transactions
+  if (lineItemsChanged && editedLineItems) {
+    // Use recalculated totals from line items
+    categoryAmounts = recalculateCategoryTotals(editedLineItems);
+    lineItemsToSave = editedLineItems;
+    
+    // Save to history for AI learning
+    await saveLineItemHistory(editedLineItems);
+  } else {
+    // Use form category (existing behavior)
+    const amount = parseFloat(formData.total_amount) || 0;
+    const categoryName = formData.category.toLowerCase();
+    categoryAmounts = {
+      groceries_amount: categoryName === 'groceries' ? amount : 0,
+      household_amount: categoryName === 'household' ? amount : 0,
+      clothing_amount: categoryName === 'clothing' ? amount : 0,
+      other_amount: !['groceries', 'household', 'clothing'].includes(categoryName) ? amount : 0,
+    };
+  }
 
-### Phase 4: Reports Page ✅ COMPLETED
-1. ✅ Create `/reports` route
-2. ✅ Move trend charts to ReportsPage
-3. ✅ Add link in MenuDrawer
-
----
-
-## Remaining Roadmap
-
-### Phase 3: Intelligence & Efficiency
-- Smart Category Suggestions (using `line_item_history` patterns)
-- One-Tap Swipe Review mode
-
-### Phase 4: Psychological Rewards
-- Spending Pulse animations
-- Wins & Progress Celebrations
-
-### Phase 5: Effortless Reporting
-- Monthly Financial Snapshot
-- Receipt Search
-- AI-Generated Insights
-
-### Phase 6: Budget Automation
-- Budget Templates
-- Rollover logic
-
----
-
-## Navigation Flow Diagram
-
-```text
-Dashboard
-├── Financial Pulse
-│   ├── Income → /budget?filter=income
-│   ├── Spent → /transactions?range=this-month
-│   └── Left → /budget
-│
-├── Quick Actions
-│   ├── Add Receipt → File picker → /review
-│   └── Manual Entry → Form dialog
-│
-├── Pending Alert → /review
-│
-├── Spending Overview
-│   ├── Income row → /budget?filter=income
-│   ├── Spend row → Expand OR /transactions
-│   └── Net Income → Tooltip
-│
-└── Category Cards → /transactions?category=X
-
-MenuDrawer
-└── Reports → /reports (trend charts)
+  await updateReceipt.mutateAsync({
+    id: receipt.id,
+    updates: {
+      merchant: formData.merchant,
+      receipt_date: formData.receipt_date,
+      total_amount: parseFloat(formData.total_amount) || 0,
+      ...categoryAmounts,
+      ...(lineItemsToSave && { line_items: lineItemsToSave }),
+    },
+  });
+  
+  onOpenChange(false);
+};
 ```
+
+### UI Structure
+
+```tsx
+<Tabs defaultValue="details" className="w-full">
+  <TabsList className="grid w-full grid-cols-2">
+    <TabsTrigger value="details">Details</TabsTrigger>
+    <TabsTrigger value="line-items" className="gap-1">
+      <List className="h-4 w-4" />
+      Items
+      {hasLineItemChanges && <span className="w-2 h-2 rounded-full bg-primary" />}
+    </TabsTrigger>
+  </TabsList>
+  
+  <TabsContent value="details" className="space-y-4 mt-4">
+    {/* Existing: Merchant, Date, Amount, Category fields */}
+  </TabsContent>
+  
+  <TabsContent value="line-items" className="mt-4">
+    {editedLineItems && editedLineItems.length > 0 ? (
+      <div className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Tap a category to change it. Changes help the AI learn!
+        </p>
+        <LineItemsDisplay 
+          lineItems={editedLineItems} 
+          editable={true}
+          onItemCategoryChange={handleLineItemCategoryChange}
+          categories={categories}
+        />
+        {hasLineItemChanges && (
+          <p className="text-xs text-primary mt-2">
+            ✓ Category changes will be saved
+          </p>
+        )}
+      </div>
+    ) : (
+      <div className="text-center py-8 text-muted-foreground">
+        No line items available for this transaction.
+      </div>
+    )}
+  </TabsContent>
+</Tabs>
+```
+
+---
+
+## Files Modified
+
+| File | Changes |
+|------|---------|
+| `src/components/transactions/TransactionEditSheet.tsx` | Add tabs UI, line items state, category change handler, AI history saving |
+
+---
+
+## User Experience
+
+1. User opens a transaction from Transactions page
+2. Sheet opens with **Details** tab (current experience)
+3. User taps **Items** tab to see line items
+4. Each line item shows description, category dropdown, and amount
+5. User can change any item's category
+6. Dot indicator appears on tab when changes are pending
+7. User taps **Save Changes**
+8. Category totals are recalculated from line items
+9. Line item history is saved for AI learning
 
 ---
 
 ## Mobile Considerations
 
-- All tap targets minimum 52px height
-- Cards have `active:scale-[0.98]` feedback
-- Collapsible sections reduce scroll depth
-- Bottom nav remains fixed with 4 tabs
-- Charts use horizontal scroll for many data points
-- Period toggle uses pill buttons for easy thumb reach
-
----
-
-## Summary
-
-This plan creates a **fully interactive dashboard** where:
-
-1. **Every number is tappable** - users can drill down into any metric
-2. **Income vs Spend visualization** prominently displays financial health
-3. **Period toggles** allow viewing data by week, month, quarter, or year
-4. **Collapsible sections** reduce information overload
-5. **Reports page** houses detailed analytics for power users
-
-The design follows the visual language from your reference images while integrating seamlessly with MintReceipt's existing "calm financial" aesthetic.
+- Tabs have 52px minimum touch targets
+- Line items remain scrollable within the sheet
+- Category dropdowns open as full-width popovers on mobile
+- Visual feedback when items are modified
 
