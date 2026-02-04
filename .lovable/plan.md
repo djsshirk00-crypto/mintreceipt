@@ -1,218 +1,232 @@
 
 
-# Enable Line Item Editing in Transaction Edit Sheet
+# Fix Category Drill-Down: Line Item View
 
-## Overview
+## Problem Summary
 
-Add the ability to view and edit individual line items when editing a transaction from the Transactions page, matching the experience users have during the initial receipt review.
+When tapping a category on the Dashboard "Spending by Category" card, the app navigates to the Transactions tab and filters by category at the **parent transaction level**. This causes incorrect totals because:
+
+1. A $42 Walmart receipt might have $35 Groceries + $7 Clothing
+2. When filtering Transactions by "Groceries", it shows the full $42 transaction
+3. The dashboard shows $35 for Groceries, but the transaction list implies $42
+
+The totals don't match because we're filtering parents, not line items.
 
 ---
 
-## Current vs Proposed
+## Solution
 
-| Current | Proposed |
-|---------|----------|
-| Can only edit total amount | Can edit individual line items |
-| Single category for entire receipt | Per-item category selection |
-| No line items visible | Line items displayed in a tab |
-| Category changes don't affect line items | Line item changes recalculate category totals |
+Create a dedicated **Category Detail page** that displays line items (splits) for a specific category and date range, ensuring totals always match the dashboard.
 
 ---
 
 ## Changes Required
 
-### File: `src/components/transactions/TransactionEditSheet.tsx`
+### 1. New Route: `/category/:categoryName`
 
-**Add Line Items Editing:**
+Add a new route in `App.tsx`:
 
-1. **Import additional dependencies:**
-   - `LineItemsDisplay` component
-   - `Tabs`, `TabsContent`, `TabsList`, `TabsTrigger` from UI
-   - `LineItem`, `Category`, `CATEGORY_CONFIG` from types
-   - `List` icon from lucide-react
+```tsx
+<Route path="/category/:categoryName" element={<AuthGuard><CategoryDetailPage /></AuthGuard>} />
+```
 
-2. **Add state for line items:**
-   - `editedLineItems` - tracks modified line items
-   - Initialize from `receipt.line_items` when receipt changes
+### 2. New Page: `src/pages/CategoryDetailPage.tsx`
 
-3. **Add helper functions:**
-   - `recalculateCategoryTotals()` - sums amounts by category from line items
-   - `handleLineItemCategoryChange()` - updates a single item's category and recalculates totals
-   - `saveLineItemHistory()` - saves edited items for AI learning (same logic as ReviewPage)
+A dedicated page that:
+- Accepts `categoryName` from URL params
+- Accepts `from` and `to` date range from query params
+- Queries receipts and extracts line items matching the category
+- Displays line items as individual rows (not parent transactions)
+- Shows a header with category total and validates it matches sum of line items
 
-4. **Update UI structure:**
-   - Add Tabs component with "Details" and "Line Items" tabs
-   - Details tab: existing merchant, date, amount, category fields
-   - Line Items tab: `LineItemsDisplay` with `editable={true}`
-   - Show message when line items have been modified
+### 3. New Hook: `src/hooks/useCategoryLineItems.ts`
 
-5. **Update handleSave:**
-   - If line items were edited, save them to the receipt
-   - Recalculate category amounts from line items
-   - Save to line_item_history for AI learning
+A data hook that:
+- Fetches all receipts in the date range with status `processed` or `reviewed`
+- Extracts `line_items` array from each receipt
+- Filters to only items matching the target category
+- Returns enriched line items with parent merchant/date attached
+- Also returns the expected category total from receipt columns for validation
+
+### 4. New Component: `src/components/category/CategoryLineItemRow.tsx`
+
+A row component showing:
+- Parent merchant name
+- Parent receipt date
+- Line item amount
+- "Split" badge if parent has multiple line items
+- Tap handler to open parent transaction detail
+
+### 5. Update: `src/components/dashboard/CategoryBreakdownList.tsx`
+
+Change navigation from:
+```tsx
+navigate(`/transactions?${params.toString()}`);
+```
+To:
+```tsx
+navigate(`/category/${category.categoryName.toLowerCase()}?${params.toString()}`);
+```
 
 ---
 
-## Detailed Implementation
+## Technical Details
 
-### State Changes
+### Data Flow
 
-```tsx
-// Add to component state
-const [editedLineItems, setEditedLineItems] = useState<LineItem[] | null>(null);
-
-// In useEffect when receipt changes
-setEditedLineItems(receipt?.line_items ? [...receipt.line_items] : null);
+```text
+Dashboard (useSpendingStats) --> CategoryBreakdownList
+                                        |
+                                        | Click on "Groceries: $70"
+                                        v
+                             /category/groceries?from=2026-02-01&to=2026-02-28
+                                        |
+                                        v
+                         CategoryDetailPage (useCategoryLineItems)
+                                        |
+                                        | Fetches receipts, extracts line_items
+                                        | Filters items where category === 'groceries'
+                                        v
+                              Line Item List (sum === $70)
 ```
 
-### Helper Functions
+### Query Logic in `useCategoryLineItems`
 
-```tsx
-// Recalculate category totals from line items
-const recalculateCategoryTotals = (items: LineItem[]) => {
-  const totals = { groceries_amount: 0, household_amount: 0, clothing_amount: 0, other_amount: 0 };
-  items.forEach(item => {
-    const key = `${item.category}_amount` as keyof typeof totals;
-    if (key in totals) {
-      totals[key] += item.amount;
-    }
-  });
-  return totals;
-};
+```typescript
+interface CategoryLineItem {
+  id: string;                    // unique: `${receiptId}-${index}`
+  receiptId: string;
+  merchant: string;
+  receiptDate: string;
+  description: string;
+  amount: number;
+  category: string;
+  parentHasMultipleItems: boolean;
+  parentTotalAmount: number;
+}
 
-// Handle category change for a line item
-const handleLineItemCategoryChange = (index: number, newCategory: string) => {
-  if (!editedLineItems) return;
+async function fetchCategoryLineItems(
+  categoryName: string,
+  startDate: Date,
+  endDate: Date
+): Promise<{ lineItems: CategoryLineItem[]; expectedTotal: number }> {
   
-  const updated = [...editedLineItems];
-  updated[index] = { ...updated[index], category: newCategory as Category };
-  setEditedLineItems(updated);
-};
+  // 1. Fetch receipts with line_items in date range
+  const { data: receipts } = await supabase
+    .from('receipts')
+    .select('id, merchant, receipt_date, total_amount, line_items, groceries_amount, household_amount, clothing_amount, other_amount')
+    .in('status', ['processed', 'reviewed'])
+    .gte('receipt_date', format(startDate, 'yyyy-MM-dd'))
+    .lte('receipt_date', format(endDate, 'yyyy-MM-dd'));
 
-// Save line items to history for AI learning
-const saveLineItemHistory = async (items: LineItem[]) => {
-  // Same implementation as ReviewPage
-};
-```
+  // 2. Calculate expected total from category columns
+  let expectedTotal = 0;
+  const targetColumn = `${categoryName}_amount`;  // e.g., 'groceries_amount'
+  receipts?.forEach(r => {
+    expectedTotal += Number(r[targetColumn]) || 0;
+  });
 
-### Updated Save Logic
-
-```tsx
-const handleSave = async () => {
-  if (!receipt) return;
-
-  const lineItemsChanged = editedLineItems && 
-    JSON.stringify(editedLineItems) !== JSON.stringify(receipt.line_items);
-
-  let categoryAmounts;
-  let lineItemsToSave = undefined;
-
-  if (lineItemsChanged && editedLineItems) {
-    // Use recalculated totals from line items
-    categoryAmounts = recalculateCategoryTotals(editedLineItems);
-    lineItemsToSave = editedLineItems;
+  // 3. Extract and filter line items
+  const lineItems: CategoryLineItem[] = [];
+  receipts?.forEach(receipt => {
+    const items = receipt.line_items as LineItem[] | null;
+    if (!items) return;
     
-    // Save to history for AI learning
-    await saveLineItemHistory(editedLineItems);
-  } else {
-    // Use form category (existing behavior)
-    const amount = parseFloat(formData.total_amount) || 0;
-    const categoryName = formData.category.toLowerCase();
-    categoryAmounts = {
-      groceries_amount: categoryName === 'groceries' ? amount : 0,
-      household_amount: categoryName === 'household' ? amount : 0,
-      clothing_amount: categoryName === 'clothing' ? amount : 0,
-      other_amount: !['groceries', 'household', 'clothing'].includes(categoryName) ? amount : 0,
-    };
-  }
-
-  await updateReceipt.mutateAsync({
-    id: receipt.id,
-    updates: {
-      merchant: formData.merchant,
-      receipt_date: formData.receipt_date,
-      total_amount: parseFloat(formData.total_amount) || 0,
-      ...categoryAmounts,
-      ...(lineItemsToSave && { line_items: lineItemsToSave }),
-    },
+    items.forEach((item, index) => {
+      if (item.category.toLowerCase() === categoryName.toLowerCase()) {
+        lineItems.push({
+          id: `${receipt.id}-${index}`,
+          receiptId: receipt.id,
+          merchant: receipt.merchant || 'Unknown',
+          receiptDate: receipt.receipt_date || receipt.created_at,
+          description: item.description,
+          amount: item.amount,
+          category: item.category,
+          parentHasMultipleItems: items.length > 1,
+          parentTotalAmount: receipt.total_amount || 0,
+        });
+      }
+    });
   });
-  
-  onOpenChange(false);
-};
+
+  // 4. Sort by date descending
+  lineItems.sort((a, b) => 
+    new Date(b.receiptDate).getTime() - new Date(a.receiptDate).getTime()
+  );
+
+  return { lineItems, expectedTotal };
+}
 ```
+
+### Sanity Check
+
+The page displays:
+- **Header**: "Groceries - $70.00" (from category column sum)
+- **Computed**: Sum of all displayed line items
+- **Warning** (dev only): If `sum !== expectedTotal`, show "Category total mismatch" alert
 
 ### UI Structure
 
-```tsx
-<Tabs defaultValue="details" className="w-full">
-  <TabsList className="grid w-full grid-cols-2">
-    <TabsTrigger value="details">Details</TabsTrigger>
-    <TabsTrigger value="line-items" className="gap-1">
-      <List className="h-4 w-4" />
-      Items
-      {hasLineItemChanges && <span className="w-2 h-2 rounded-full bg-primary" />}
-    </TabsTrigger>
-  </TabsList>
-  
-  <TabsContent value="details" className="space-y-4 mt-4">
-    {/* Existing: Merchant, Date, Amount, Category fields */}
-  </TabsContent>
-  
-  <TabsContent value="line-items" className="mt-4">
-    {editedLineItems && editedLineItems.length > 0 ? (
-      <div className="space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Tap a category to change it. Changes help the AI learn!
-        </p>
-        <LineItemsDisplay 
-          lineItems={editedLineItems} 
-          editable={true}
-          onItemCategoryChange={handleLineItemCategoryChange}
-          categories={categories}
-        />
-        {hasLineItemChanges && (
-          <p className="text-xs text-primary mt-2">
-            ✓ Category changes will be saved
-          </p>
-        )}
-      </div>
-    ) : (
-      <div className="text-center py-8 text-muted-foreground">
-        No line items available for this transaction.
-      </div>
-    )}
-  </TabsContent>
-</Tabs>
+```text
++---------------------------------------+
+|  < Back    Groceries     February     |
++---------------------------------------+
+|  Category Total: $70.00               |
+|  (6 items from 3 transactions)        |
++---------------------------------------+
+|                                       |
+|  [Row] Walmart - Feb 4                |
+|        Bananas                  $3.50 |
+|        [Split badge]                  |
+|                                       |
+|  [Row] Walmart - Feb 4                |
+|        Milk 2%                  $4.99 |
+|        [Split badge]                  |
+|                                       |
+|  [Row] Target - Feb 2                 |
+|        Bread                    $2.50 |
+|                                       |
+|  ...                                  |
++---------------------------------------+
 ```
 
+### Tap Behavior
+
+When user taps a line item row:
+1. Find the parent receipt by `receiptId`
+2. Open `TransactionEditSheet` with that receipt
+3. The sheet shows the full transaction (all line items, all categories)
+4. User can edit and save
+5. Changes don't affect what's displayed in category list (amounts are from line_items)
+
 ---
 
-## Files Modified
+## Files to Create/Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/transactions/TransactionEditSheet.tsx` | Add tabs UI, line items state, category change handler, AI history saving |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/pages/CategoryDetailPage.tsx` | Create | New page for line item view |
+| `src/hooks/useCategoryLineItems.ts` | Create | Hook to fetch/filter line items |
+| `src/components/category/CategoryLineItemRow.tsx` | Create | Row component for line items |
+| `src/App.tsx` | Modify | Add route for `/category/:categoryName` |
+| `src/components/dashboard/CategoryBreakdownList.tsx` | Modify | Change navigation target |
 
 ---
 
-## User Experience
+## Edge Cases
 
-1. User opens a transaction from Transactions page
-2. Sheet opens with **Details** tab (current experience)
-3. User taps **Items** tab to see line items
-4. Each line item shows description, category dropdown, and amount
-5. User can change any item's category
-6. Dot indicator appears on tab when changes are pending
-7. User taps **Save Changes**
-8. Category totals are recalculated from line items
-9. Line item history is saved for AI learning
+1. **Receipt without line_items array**: Skip it (only show receipts with parsed items)
+2. **Multiple items in same category from one receipt**: Show as separate rows
+3. **Empty result**: Show friendly "No spending in this category" message
+4. **Category name mismatch**: Normalize to lowercase for comparison
 
 ---
 
 ## Mobile Considerations
 
-- Tabs have 52px minimum touch targets
-- Line items remain scrollable within the sheet
-- Category dropdowns open as full-width popovers on mobile
-- Visual feedback when items are modified
+- Page uses `AppLayout` for consistent navigation
+- Rows have 52px minimum tap target
+- Pull-to-refresh support via `PullToRefresh` wrapper
+- Back button navigates to Dashboard
+- Bottom padding for floating nav (pb-28)
 
