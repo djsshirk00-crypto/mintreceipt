@@ -159,10 +159,10 @@ serve(async (req) => {
       throw new Error(`Failed to download image: ${downloadError?.message}`);
     }
 
-    // Check file size - limit to 4MB to prevent memory issues
-    const MAX_SIZE = 4 * 1024 * 1024; // 4MB
+    // Check file size - limit to 10MB to prevent memory issues
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
     if (imageData.size > MAX_SIZE) {
-      throw new Error('Image is too large. Please upload images under 4MB.');
+      throw new Error('Image is too large. Please upload images under 10MB.');
     }
 
     // Convert file to base64 using efficient chunked encoding
