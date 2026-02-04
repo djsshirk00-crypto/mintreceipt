@@ -48,11 +48,10 @@ export function CategoryBreakdownList() {
   const handleCategoryClick = useCallback((category: CategorySpending) => {
     const now = new Date();
     const params = new URLSearchParams();
-    params.set('category', category.categoryName.toLowerCase());
     params.set('from', format(startOfMonth(now), 'yyyy-MM-dd'));
     params.set('to', format(endOfMonth(now), 'yyyy-MM-dd'));
     
-    navigate(`/transactions?${params.toString()}`);
+    navigate(`/category/${category.categoryName.toLowerCase()}?${params.toString()}`);
   }, [navigate]);
 
   // Filter categories with spending
