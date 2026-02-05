@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCategories, Category } from './useCategories';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, format } from 'date-fns';
+import { aggregateLineItemSpending } from '@/lib/lineItemAggregation';
 
 export interface CategorySpending {
   categoryId: string;
@@ -27,10 +28,14 @@ export function useSpendingStats(timeRange: TimeRange = 'this-month') {
   return useQuery({
     queryKey: ['spending-stats', timeRange],
     queryFn: async () => {
+      if (!dbCategories || dbCategories.length === 0) {
+        return null;
+      }
+
       // Calculate date range
       const now = new Date();
-      let startDate: Date | null = null;
-      let endDate: Date | null = null;
+      let startDate: Date;
+      let endDate: Date;
       let label = '';
 
       switch (timeRange) {
@@ -55,85 +60,40 @@ export function useSpendingStats(timeRange: TimeRange = 'this-month') {
           label = format(subMonths(now, 1), 'MMMM yyyy');
           break;
         case 'all-time':
+        default:
+          // For all-time, use a very old start date
+          startDate = new Date(2000, 0, 1);
+          endDate = now;
           label = 'All Time';
           break;
       }
 
-      // Build query
-      let query = supabase
-        .from('receipts')
-        .select('id, total_amount, groceries_amount, household_amount, clothing_amount, other_amount, receipt_date, created_at, status')
-        .in('status', ['processed', 'reviewed']);
+      // Use line items as source of truth for category spending
+      const { total, categoryTotals, receiptCount } = await aggregateLineItemSpending(
+        startDate,
+        endDate,
+        dbCategories
+      );
 
-      if (startDate) {
-        query = query.gte('receipt_date', format(startDate, 'yyyy-MM-dd'));
-      }
-      if (endDate) {
-        query = query.lte('receipt_date', format(endDate, 'yyyy-MM-dd'));
-      }
-
-      const { data: receipts, error } = await query;
-
-      if (error) throw error;
-
-      // Calculate totals by legacy category
-      const legacyCategoryTotals: Record<string, number> = {
-        groceries: 0,
-        household: 0,
-        clothing: 0,
-        other: 0,
-      };
-
-      let total = 0;
-
-      receipts?.forEach((r) => {
-        legacyCategoryTotals.groceries += Number(r.groceries_amount) || 0;
-        legacyCategoryTotals.household += Number(r.household_amount) || 0;
-        legacyCategoryTotals.clothing += Number(r.clothing_amount) || 0;
-        legacyCategoryTotals.other += Number(r.other_amount) || 0;
-        total += Number(r.total_amount) || 0;
-      });
-
-      // Map to category spending with database categories
-      const categories: CategorySpending[] = [];
-      
-      // Add database categories with their amounts
-      if (dbCategories) {
-        for (const cat of dbCategories) {
-          const legacyKey = cat.name.toLowerCase();
-          const amount = legacyCategoryTotals[legacyKey] || 0;
-          
-          categories.push({
-            categoryId: cat.id,
-            categoryName: cat.name,
-            icon: cat.icon,
-            color: cat.color,
-            amount,
-          });
-        }
-      } else {
-        // Fallback to legacy categories if no db categories
-        categories.push(
-          { categoryId: 'groceries', categoryName: 'Groceries', icon: '🥬', color: 'groceries', amount: legacyCategoryTotals.groceries },
-          { categoryId: 'household', categoryName: 'Household', icon: '🏠', color: 'household', amount: legacyCategoryTotals.household },
-          { categoryId: 'clothing', categoryName: 'Clothing', icon: '👕', color: 'clothing', amount: legacyCategoryTotals.clothing },
-          { categoryId: 'other', categoryName: 'Other', icon: '📦', color: 'other', amount: legacyCategoryTotals.other },
-        );
-      }
-
-      // Sort by amount descending
-      categories.sort((a, b) => b.amount - a.amount);
+      // Map to CategorySpending format
+      const categories: CategorySpending[] = categoryTotals.map(ct => ({
+        categoryId: ct.categoryId,
+        categoryName: ct.categoryName,
+        icon: ct.icon,
+        color: ct.color,
+        amount: ct.amount,
+      }));
 
       return {
         label,
-        startDate: startDate || new Date(0),
-        endDate: endDate || now,
+        startDate,
+        endDate,
         total,
         categories,
-        receiptCount: receipts?.length || 0,
+        receiptCount,
       };
     },
-    enabled: timeRange !== 'custom',
+    enabled: timeRange !== 'custom' && !!dbCategories && dbCategories.length > 0,
   });
 }
 
@@ -143,63 +103,25 @@ export function useCustomSpendingStats(startDate: Date | null, endDate: Date | n
   return useQuery({
     queryKey: ['spending-stats', 'custom', startDate?.toISOString(), endDate?.toISOString()],
     queryFn: async () => {
-      if (!startDate || !endDate) return null;
-
-      // Build query with custom date range
-      const { data: receipts, error } = await supabase
-        .from('receipts')
-        .select('id, total_amount, groceries_amount, household_amount, clothing_amount, other_amount, receipt_date, created_at, status')
-        .in('status', ['processed', 'reviewed'])
-        .gte('receipt_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('receipt_date', format(endDate, 'yyyy-MM-dd'));
-
-      if (error) throw error;
-
-      // Calculate totals by legacy category
-      const legacyCategoryTotals: Record<string, number> = {
-        groceries: 0,
-        household: 0,
-        clothing: 0,
-        other: 0,
-      };
-
-      let total = 0;
-
-      receipts?.forEach((r) => {
-        legacyCategoryTotals.groceries += Number(r.groceries_amount) || 0;
-        legacyCategoryTotals.household += Number(r.household_amount) || 0;
-        legacyCategoryTotals.clothing += Number(r.clothing_amount) || 0;
-        legacyCategoryTotals.other += Number(r.other_amount) || 0;
-        total += Number(r.total_amount) || 0;
-      });
-
-      // Map to category spending with database categories
-      const categories: CategorySpending[] = [];
-      
-      if (dbCategories) {
-        for (const cat of dbCategories) {
-          const legacyKey = cat.name.toLowerCase();
-          const amount = legacyCategoryTotals[legacyKey] || 0;
-          
-          categories.push({
-            categoryId: cat.id,
-            categoryName: cat.name,
-            icon: cat.icon,
-            color: cat.color,
-            amount,
-          });
-        }
-      } else {
-        categories.push(
-          { categoryId: 'groceries', categoryName: 'Groceries', icon: '🥬', color: 'groceries', amount: legacyCategoryTotals.groceries },
-          { categoryId: 'household', categoryName: 'Household', icon: '🏠', color: 'household', amount: legacyCategoryTotals.household },
-          { categoryId: 'clothing', categoryName: 'Clothing', icon: '👕', color: 'clothing', amount: legacyCategoryTotals.clothing },
-          { categoryId: 'other', categoryName: 'Other', icon: '📦', color: 'other', amount: legacyCategoryTotals.other },
-        );
+      if (!startDate || !endDate || !dbCategories || dbCategories.length === 0) {
+        return null;
       }
 
-      // Sort by amount descending
-      categories.sort((a, b) => b.amount - a.amount);
+      // Use line items as source of truth for category spending
+      const { total, categoryTotals, receiptCount } = await aggregateLineItemSpending(
+        startDate,
+        endDate,
+        dbCategories
+      );
+
+      // Map to CategorySpending format
+      const categories: CategorySpending[] = categoryTotals.map(ct => ({
+        categoryId: ct.categoryId,
+        categoryName: ct.categoryName,
+        icon: ct.icon,
+        color: ct.color,
+        amount: ct.amount,
+      }));
 
       const label = `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
 
@@ -209,10 +131,10 @@ export function useCustomSpendingStats(startDate: Date | null, endDate: Date | n
         endDate,
         total,
         categories,
-        receiptCount: receipts?.length || 0,
+        receiptCount,
       };
     },
-    enabled: !!startDate && !!endDate,
+    enabled: !!startDate && !!endDate && !!dbCategories && dbCategories.length > 0,
   });
 }
 
