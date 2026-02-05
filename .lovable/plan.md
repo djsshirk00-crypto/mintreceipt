@@ -1,130 +1,120 @@
 
-# Dashboard & Reports Reorganization
+# Enhanced Dashboard Visualizations
 
 ## Overview
 
-A comprehensive reorganization of financial visualizations across Dashboard, Budget, and Reports pages with enhanced category legend showing budget remaining.
+Add progress bars to the category legend items and implement a "this week vs last week" comparison view in the spending trends chart.
 
 ---
 
-## Summary of Changes
+## Changes
 
-| Component | From | To |
-|-----------|------|-----|
-| Spending Breakdown (pie chart) | Reports page | Dashboard (below QuickActions) |
-| Weekly/Monthly Trend Charts | Bar charts (Reports) | Line graphs with toggle (Dashboard, below pie chart) |
-| Financial Pulse (Income/Spent/Left) | Dashboard | Budget page (top) |
-| Income vs Spent visual (SpendingOverviewCard) | Dashboard | Reports page |
+### 1. Category Progress Bars in Spending Breakdown
 
----
+**File**: `src/components/dashboard/SpendingBreakdownCard.tsx`
 
-## Detailed Changes
+**What changes**:
+- Add a thin progress bar below each category row in the legend
+- For categories WITH a budget: Show progress toward budget (% used)
+- For categories WITHOUT a budget: Show progress as % of total spending
+- Use category color for the progress bar fill
+- Handle over-budget case with full bar + red color
 
-### 1. Dashboard Reorganization
-
-**File**: `src/pages/Dashboard.tsx`
-
-**New Order**:
-1. Header
-2. QuickActions (upload buttons)
-3. **NEW: Spending Breakdown pie chart** (extracted from SpendingReports)
-4. **NEW: Spending Trends line chart** (weekly/monthly toggle)
-5. PendingReviewAlert
-6. CategoryBreakdownList
-
-**Components to add/create**:
-- Create `SpendingBreakdownCard` - pie chart with budget-aware legend
-- Create `SpendingTrendsCard` - line graph with week/month toggle
-
----
-
-### 2. Enhanced Category Legend with Budget Remaining
-
-**New Feature in Pie Chart Legend**:
-- For categories WITH a budget: Show "$ remaining" or "$ over"
-- For categories WITHOUT a budget: Show just the amount spent (current behavior)
-
+**Visual layout**:
 ```
-Legend Row Examples:
   🥬 Groceries    42%    $161    $39 left   →
+  ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░   80% of budget
+  
   🏠 Household    28%    $108    $42 over   →
-  👕 Clothing     18%     $70               →  (no budget)
+  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓   100%+ (red)
+  
+  👕 Clothing     18%     $70               →
+  ▓▓▓▓▓▓▓▓░░░░░░░░░░░░   18% of total
 ```
-
-**Data needed**:
-- Fetch budgets for current month alongside spending stats
-- Calculate remaining = budget.amount - category.spent
 
 ---
 
-### 3. Spending Trends Line Graph
+### 2. This Week vs Last Week Comparison
 
-**New Component**: `src/components/dashboard/SpendingTrendsCard.tsx`
+**File**: `src/components/dashboard/SpendingTrendsCard.tsx`
 
-**Features**:
-- Toggle button: "Weekly" | "Monthly"
-- Line chart (not bar chart)
-- Uses existing `useWeeklyTrend` and `useMonthlyTrend` hooks
-- Recharts `LineChart` with `Line`, `XAxis`, `Tooltip`
+**What changes**:
+- Fetch both this week and last week data when in "weekly" view
+- Add a second "shadow" line for last week's spending
+- Use lower opacity and dashed stroke for the comparison line
+- Add legend indicators for "This Week" vs "Last Week"
 
+**Visual layout**:
 ```
 +----------------------------------------+
 |  Spending Trends      [Weekly|Monthly] |
 +----------------------------------------+
 |    ^                                   |
-|    |         •                         |
-|    |       /   \     •                 |
-|    |      •     \   /                  |
-|    |             •                     |
+|    |     ●━━━━━●━━━●  This Week         |
+|    |   ○╌╌╌╌╌○╌╌╌╌○    Last Week        |
+|    |                                   |
 |    +---------------------------------> |
-|    Jan   Feb   Mar   Apr   May   Jun   |
+|    Mon  Tue  Wed  Thu  Fri  Sat  Sun   |
 +----------------------------------------+
 ```
 
+**Data structure**:
+- Create a new hook or modify existing to fetch daily spending for current and previous week
+- Merge into chart data with `thisWeek` and `lastWeek` keys
+
 ---
 
-### 4. Budget Page Update
+## Technical Details
 
-**File**: `src/pages/BudgetPage.tsx`
-
-**Add**: FinancialPulse component at top of page
+### Progress Bar Implementation
 
 ```tsx
-import { FinancialPulse } from '@/components/dashboard/FinancialPulse';
-
-// Add after header, before BudgetCategoriesManager
-<FinancialPulse />
+// In BudgetAwareLegend component
+<div className="mt-1 w-full">
+  <Progress 
+    value={entry.budget ? Math.min((entry.value / entry.budget) * 100, 100) : entry.percentage}
+    className="h-1.5"
+    style={{ 
+      '--progress-color': entry.isOverBudget ? 'hsl(var(--destructive))' : entry.color 
+    }}
+  />
+</div>
 ```
 
----
+### Dual Line Chart Implementation
 
-### 5. Reports Page Update
+```tsx
+// Two Line components in the chart
+<Line 
+  type="monotone" 
+  dataKey="lastWeek" 
+  stroke="hsl(var(--muted-foreground))"
+  strokeWidth={1.5}
+  strokeDasharray="4 4"
+  dot={false}
+  opacity={0.5}
+/>
+<Line 
+  type="monotone" 
+  dataKey="thisWeek" 
+  stroke="hsl(var(--primary))"
+  strokeWidth={2}
+  dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+/>
+```
 
-**File**: `src/pages/ReportsPage.tsx` and `src/components/receipt/SpendingReports.tsx`
+### New Hook: `useDailyWeeklyComparison`
 
-**Changes**:
-- Add `SpendingOverviewCard` (Income vs Spent visual) to Reports
-- Remove the pie chart (moved to Dashboard)
-- Keep time period selector
-- Keep summary cards (Total Spent, Receipts, Trend)
-- Remove weekly/monthly bar charts (moved to Dashboard as line graphs)
+**File**: `src/hooks/useSpendingStats.ts`
 
----
-
-## New Components to Create
-
-### `src/components/dashboard/SpendingBreakdownCard.tsx`
-
-- Donut pie chart with center total
-- Budget-aware legend showing remaining for budgeted categories
-- Click to drill-down to category detail
-- Uses `useSpendingStats('this-month')` and `useBudgetsWithSpending`
-
-### `src/components/dashboard/SpendingTrendsCard.tsx`
-
-- Week/Month toggle
-- Recharts `LineChart`
-- Uses existing `useWeeklyTrend` and `useMonthlyTrend` hooks
+Returns data in format:
+```typescript
+[
+  { day: 'Mon', thisWeek: 45, lastWeek: 32 },
+  { day: 'Tue', thisWeek: 28, lastWeek: 55 },
+  // ...
+]
+```
 
 ---
 
@@ -132,63 +122,14 @@ import { FinancialPulse } from '@/components/dashboard/FinancialPulse';
 
 | File | Changes |
 |------|---------|
-| `src/pages/Dashboard.tsx` | Remove FinancialPulse & SpendingOverviewCard, add SpendingBreakdownCard & SpendingTrendsCard |
-| `src/pages/BudgetPage.tsx` | Add FinancialPulse at top |
-| `src/pages/ReportsPage.tsx` | Add SpendingOverviewCard |
-| `src/components/receipt/SpendingReports.tsx` | Remove pie chart, keep summary cards & time selector |
-| `src/components/dashboard/SpendingBreakdownCard.tsx` | **NEW** - Pie chart with budget-aware legend |
-| `src/components/dashboard/SpendingTrendsCard.tsx` | **NEW** - Line graph with toggle |
-
----
-
-## Technical Details
-
-### Budget-Aware Legend Logic
-
-```typescript
-interface LegendItem {
-  name: string;
-  icon: string;
-  spent: number;
-  percentage: number;
-  budget?: number;      // from useBudgetsWithSpending
-  remaining?: number;   // budget - spent (if budgeted)
-  isOverBudget?: boolean;
-}
-
-// In CustomLegend:
-{entry.budget ? (
-  <span className={entry.isOverBudget ? 'text-destructive' : 'text-success'}>
-    ${Math.abs(entry.remaining)} {entry.isOverBudget ? 'over' : 'left'}
-  </span>
-) : null}
-```
-
-### Line Chart Implementation
-
-```tsx
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-
-<LineChart data={trendData}>
-  <XAxis dataKey="label" />
-  <YAxis tickFormatter={(v) => `$${v}`} />
-  <Tooltip formatter={(value) => [`$${value}`, 'Spent']} />
-  <Line 
-    type="monotone" 
-    dataKey="total" 
-    stroke="hsl(var(--primary))"
-    strokeWidth={2}
-    dot={{ fill: 'hsl(var(--primary))' }}
-  />
-</LineChart>
-```
+| `src/components/dashboard/SpendingBreakdownCard.tsx` | Add Progress bar to each legend item |
+| `src/components/dashboard/SpendingTrendsCard.tsx` | Add dual-line chart with this/last week comparison |
+| `src/hooks/useSpendingStats.ts` | Add `useDailyWeeklyComparison` hook |
 
 ---
 
 ## Mobile Considerations
 
-- Pie chart maintains 60px inner radius for center total
-- Legend items maintain 52px tap targets
-- Toggle buttons are full-width on mobile
-- All cards use responsive padding
-
+- Progress bars are thin (h-1.5) to not add excessive height
+- Legend items maintain 52px minimum tap targets
+- Chart legend for "This Week" / "Last Week" shown above the chart
