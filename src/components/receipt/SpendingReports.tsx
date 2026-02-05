@@ -1,14 +1,67 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useSpendingStats, useWeeklyTrend, useMonthlyTrend, useCustomSpendingStats, TimeRange, CategorySpending } from '@/hooks/useSpendingStats';
-import { DynamicCategorySummaryGrid } from './DynamicCategorySummary';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useCallback } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Calendar, DollarSign } from 'lucide-react';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+// Color palette for pie chart slices
+const CATEGORY_COLORS = [
+  'hsl(142, 60%, 45%)',   // Green (Groceries)
+  'hsl(210, 80%, 55%)',   // Blue (Household)
+  'hsl(280, 70%, 55%)',   // Purple (Clothing)
+  'hsl(30, 80%, 55%)',    // Orange (Other)
+  'hsl(340, 70%, 55%)',   // Pink
+  'hsl(180, 60%, 45%)',   // Teal
+];
+
+interface PieDataItem {
+  name: string;
+  value: number;
+  icon: string;
+  color: string;
+  percentage: number;
+  categoryData: CategorySpending;
+}
+
+interface CustomLegendProps {
+  data: PieDataItem[];
+  onCategoryClick: (category: CategorySpending) => void;
+}
+
+function CustomLegend({ data, onCategoryClick }: CustomLegendProps) {
+  return (
+    <div className="space-y-2 mt-4">
+      {data.map((entry) => (
+        <button
+          key={entry.name}
+          onClick={() => onCategoryClick(entry.categoryData)}
+          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-muted/50 transition-colors text-left min-h-[52px]"
+        >
+          <div 
+            className="w-3 h-3 rounded-full flex-shrink-0"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="text-base">{entry.icon}</span>
+          <span className="text-sm font-medium text-foreground truncate flex-1">
+            {entry.name}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {entry.percentage.toFixed(0)}%
+          </span>
+          <span className="text-sm font-semibold text-foreground">
+            ${entry.value.toFixed(2)}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function SpendingReports() {
   const navigate = useNavigate();
@@ -171,16 +224,89 @@ export function SpendingReports() {
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
             </div>
           ) : displayStats && displayStats.categories.length > 0 ? (
-            <div>
-              <h3 className="text-lg font-medium text-foreground mb-4">
-                Spending by Category - {displayStats.label}
-              </h3>
-              <DynamicCategorySummaryGrid 
-                categories={displayStats.categories} 
-                total={displayStats.total}
-                onCategoryClick={handleCategoryClick}
-              />
-            </div>
+            (() => {
+              const pieData: PieDataItem[] = displayStats.categories
+                .filter(c => c.amount > 0)
+                .map((c, index) => ({
+                  name: c.categoryName,
+                  value: c.amount,
+                  icon: c.icon,
+                  color: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+                  percentage: displayStats.total > 0 ? (c.amount / displayStats.total) * 100 : 0,
+                  categoryData: c,
+                }));
+
+              if (pieData.length === 0) {
+                return (
+                  <Card>
+                    <CardContent className="p-8 text-center">
+                      <p className="text-muted-foreground">No spending data for this period.</p>
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">
+                      Spending Breakdown - {displayStats.label}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Donut Chart */}
+                    <div className="h-64 relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={90}
+                            paddingAngle={2}
+                            dataKey="value"
+                            onClick={(_, index) => handleCategoryClick(pieData[index].categoryData)}
+                            className="cursor-pointer"
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.color}
+                                className="hover:opacity-80 transition-opacity"
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            formatter={(value: number) => [`$${value.toFixed(2)}`, 'Amount']}
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--background))',
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      {/* Center Total */}
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p className="text-xl font-bold text-foreground">
+                            ${displayStats.total.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Interactive Legend */}
+                    <CustomLegend 
+                      data={pieData} 
+                      onCategoryClick={handleCategoryClick}
+                    />
+                  </CardContent>
+                </Card>
+              );
+            })()
           ) : timeRange === 'custom' && (!customStartDate || !customEndDate) ? (
             <Card>
               <CardContent className="p-8 text-center">
