@@ -2,29 +2,32 @@ import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useReceipts, useReviewReceipt, useDeleteReceipt, useProcessReceipt, useProcessingTimeout, Receipt } from '@/hooks/useReceipts';
 import { useCategories } from '@/hooks/useCategories';
+import { useSpendingStats } from '@/hooks/useSpendingStats';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ReceiptCard } from '@/components/receipt/ReceiptCard';
 import { ReceiptImageViewer } from '@/components/receipt/ReceiptImageViewer';
-import { CategorySummaryGrid } from '@/components/receipt/CategorySummaryCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Check, X, Edit2, CheckSquare, List, RefreshCw, Trash2, Loader2 } from 'lucide-react';
+import { Check, X, Edit2, CheckSquare, List, RefreshCw, Trash2, Loader2, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineItemsDisplay } from '@/components/receipt/LineItemsDisplay';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Category, CATEGORY_CONFIG, CategoryTotals, LineItem } from '@/types/receipt';
+import { Category, CATEGORY_CONFIG, LineItem } from '@/types/receipt';
 import { format } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 export default function ReviewPage() {
+  const navigate = useNavigate();
   const { data: dbCategories } = useCategories();
   const { data: receipts, isLoading } = useReceipts();
+  const { data: weeklyStats, isLoading: isLoadingStats } = useSpendingStats('this-week');
   const reviewReceipt = useReviewReceipt();
   const deleteReceipt = useDeleteReceipt();
   const processReceipt = useProcessReceipt();
@@ -47,16 +50,6 @@ export default function ReviewPage() {
   const processedReceipts = receipts?.filter(r => r.status === 'processed') || [];
   const failedReceipts = receipts?.filter(r => r.status === 'failed') || [];
   const pendingReceipts = [...processingReceipts, ...processedReceipts, ...failedReceipts];
-  const reviewedReceipts = receipts?.filter(r => r.status === 'reviewed') || [];
-
-  // Calculate totals for reviewed receipts
-  const reviewedTotals: CategoryTotals = reviewedReceipts.reduce((acc, r) => ({
-    groceries: acc.groceries + r.groceries_amount,
-    household: acc.household + r.household_amount,
-    clothing: acc.clothing + r.clothing_amount,
-    other: acc.other + r.other_amount,
-    total: acc.total + (Number(r.total_amount) || 0),
-  }), { groceries: 0, household: 0, clothing: 0, other: 0, total: 0 });
 
   const handleSelectReceipt = (receipt: Receipt) => {
     setSelectedReceipt(receipt);
@@ -400,17 +393,7 @@ export default function ReviewPage() {
           )}
         </div>
 
-        {/* Summary for reviewed */}
-        {reviewedTotals.total > 0 && (
-          <section>
-            <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">
-              This Week's Spending
-            </h2>
-            <CategorySummaryGrid totals={reviewedTotals} />
-          </section>
-        )}
-
-        {/* Pending review - includes processing, processed, and failed */}
+        {/* Pending review - moved to top, compact when empty */}
         <section>
           <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">
             Ready for Review ({pendingReceipts.length})
@@ -418,8 +401,8 @@ export default function ReviewPage() {
 
           {isLoading ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {[1, 2, 3, 4].map(i => (
-                <Skeleton key={i} className="h-32" />
+              {[1, 2].map(i => (
+                <Skeleton key={i} className="h-24" />
               ))}
             </div>
           ) : pendingReceipts.length > 0 ? (
@@ -477,19 +460,81 @@ export default function ReviewPage() {
               ))}
             </div>
           ) : (
-            <Card>
-              <CardContent className="p-8 md:p-12 text-center">
-                <div className="flex h-14 w-14 md:h-16 md:w-16 items-center justify-center rounded-full bg-muted mx-auto mb-4">
-                  <CheckSquare className="h-7 w-7 md:h-8 md:w-8 text-muted-foreground" />
+            // Compact empty state
+            <Card className="border-dashed">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted flex-shrink-0">
+                  <CheckSquare className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  All caught up!
-                </h3>
-                <p className="text-muted-foreground max-w-md mx-auto text-sm md:text-base">
-                  No receipts pending review. Capture a new receipt to continue tracking your spending.
-                </p>
+                <div>
+                  <p className="font-medium text-foreground text-sm">All caught up!</p>
+                  <p className="text-xs text-muted-foreground">No receipts pending review</p>
+                </div>
               </CardContent>
             </Card>
+          )}
+        </section>
+
+        {/* Weekly spending categories - compact rectangular widgets */}
+        <section>
+          <h2 className="text-lg md:text-xl font-semibold text-foreground mb-3 md:mb-4">
+            This Week's Spending
+          </h2>
+
+          {isLoadingStats ? (
+            <div className="grid grid-cols-2 gap-2">
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-14" />
+              ))}
+            </div>
+          ) : weeklyStats?.categories && weeklyStats.categories.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {weeklyStats.categories.map(category => {
+                const percentage = weeklyStats.total > 0 
+                  ? (category.amount / weeklyStats.total) * 100 
+                  : 0;
+                
+                return (
+                  <button
+                    key={category.categoryId}
+                    onClick={() => navigate(`/category/${category.categoryId}`)}
+                    className={cn(
+                      "flex items-center gap-2 p-3 rounded-lg border bg-card text-left",
+                      "hover:bg-muted/50 active:scale-[0.98] transition-all",
+                      "min-h-[52px]"
+                    )}
+                  >
+                    <span className="text-lg flex-shrink-0">{category.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {category.categoryName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {percentage.toFixed(0)}%
+                      </p>
+                    </div>
+                    <span className="font-semibold text-foreground text-sm flex-shrink-0">
+                      ${category.amount.toFixed(0)}
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="p-4 text-center">
+                <p className="text-sm text-muted-foreground">No spending this week</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {weeklyStats?.total !== undefined && weeklyStats.total > 0 && (
+            <div className="mt-3 text-center">
+              <p className="text-sm text-muted-foreground">
+                Total: <span className="font-semibold text-foreground">${weeklyStats.total.toFixed(2)}</span>
+              </p>
+            </div>
           )}
         </section>
 
