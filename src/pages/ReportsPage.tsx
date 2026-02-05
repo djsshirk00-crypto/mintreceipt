@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SpendingReports } from '@/components/receipt/SpendingReports';
+import { SpendingOverviewCard } from '@/components/dashboard/SpendingOverviewCard';
 
 export default function ReportsPage() {
   return (
@@ -11,6 +12,9 @@ export default function ReportsPage() {
             Analyze your spending trends and patterns.
           </p>
         </div>
+        
+        {/* Income vs Spent Overview */}
+        <SpendingOverviewCard />
         
         <SpendingReports />
       </div>

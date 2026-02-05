@@ -1,8 +1,8 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { FinancialPulse } from '@/components/dashboard/FinancialPulse';
 import { QuickActions } from '@/components/dashboard/QuickActions';
 import { PendingReviewAlert } from '@/components/dashboard/PendingReviewAlert';
-import { SpendingOverviewCard } from '@/components/dashboard/SpendingOverviewCard';
+import { SpendingBreakdownCard } from '@/components/dashboard/SpendingBreakdownCard';
+import { SpendingTrendsCard } from '@/components/dashboard/SpendingTrendsCard';
 import { CategoryBreakdownList } from '@/components/dashboard/CategoryBreakdownList';
 
 export default function Dashboard() {
@@ -17,24 +17,24 @@ export default function Dashboard() {
           </p>
         </div>
 
-        {/* Financial Pulse - Income/Spent/Remaining */}
-        <div data-tour="financial-pulse">
-          <FinancialPulse />
-        </div>
-
         {/* Quick Actions - Upload + Manual Entry */}
         <div data-tour="upload-zone">
           <QuickActions />
         </div>
 
+        {/* Spending Breakdown - Pie chart with budget-aware legend */}
+        <div data-tour="spending-breakdown">
+          <SpendingBreakdownCard />
+        </div>
+
+        {/* Spending Trends - Line chart with weekly/monthly toggle */}
+        <div data-tour="spending-trends">
+          <SpendingTrendsCard />
+        </div>
+
         {/* Pending Review Alert (conditionally rendered) */}
         <div data-tour="status-cards">
           <PendingReviewAlert />
-        </div>
-
-        {/* Spending Overview - Period-based charts */}
-        <div data-tour="spending-reports">
-          <SpendingOverviewCard />
         </div>
 
         {/* Category Breakdown - Collapsible list */}
