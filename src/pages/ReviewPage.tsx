@@ -482,14 +482,16 @@ export default function ReviewPage() {
           </h2>
 
           {isLoadingStats ? (
-            <div className="grid grid-cols-2 gap-2">
-              {[1, 2, 3, 4].map(i => (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
                 <Skeleton key={i} className="h-14" />
               ))}
             </div>
-          ) : weeklyStats?.categories && weeklyStats.categories.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2">
-              {weeklyStats.categories.map(category => {
+          ) : weeklyStats?.categories && weeklyStats.categories.filter(c => c.amount > 0).length > 0 ? (
+            <div className="space-y-2">
+              {weeklyStats.categories
+                .filter(category => category.amount > 0)
+                .map(category => {
                 const percentage = weeklyStats.total > 0 
                   ? (category.amount / weeklyStats.total) * 100 
                   : 0;
@@ -499,7 +501,7 @@ export default function ReviewPage() {
                     key={category.categoryId}
                     onClick={() => navigate(`/category/${category.categoryId}`)}
                     className={cn(
-                      "flex items-center gap-2 p-3 rounded-lg border bg-card text-left",
+                      "flex items-center gap-3 p-3 rounded-lg border bg-card text-left w-full",
                       "hover:bg-muted/50 active:scale-[0.98] transition-all",
                       "min-h-[52px]"
                     )}
