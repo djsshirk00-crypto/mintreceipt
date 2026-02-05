@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { BudgetCategoriesManager } from '@/components/budget/BudgetCategoriesManager';
+import { FinancialPulse } from '@/components/dashboard/FinancialPulse';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function BudgetPage() {
@@ -18,6 +19,9 @@ export default function BudgetPage() {
             </p>
           )}
         </div>
+        
+        {/* Financial Pulse - Income/Spent/Left */}
+        <FinancialPulse />
         
         <BudgetCategoriesManager />
       </div>
