@@ -210,7 +210,7 @@ export function SpendingBreakdownCard() {
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Amount']}
+                formatter={(value: number, name: string, props: any) => [`$${value.toFixed(2)}`, props.payload.name]}
                 contentStyle={{ 
                   backgroundColor: 'hsl(var(--background))',
                   border: '1px solid hsl(var(--border))',
