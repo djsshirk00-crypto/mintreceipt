@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { useSpendingStats, CategorySpending } from '@/hooks/useSpendingStats';
 import { useBudgetsWithSpending } from '@/hooks/useBudgets';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
@@ -37,38 +38,65 @@ interface BudgetAwareLegendProps {
 
 function BudgetAwareLegend({ data, onCategoryClick }: BudgetAwareLegendProps) {
   return (
-    <div className="space-y-1 mt-4">
-      {data.map((entry) => (
-        <button
-          key={entry.name}
-          onClick={() => onCategoryClick(entry.categoryData)}
-          className="flex items-center gap-2 w-full p-3 rounded-lg hover:bg-muted/50 transition-colors text-left min-h-[52px]"
-        >
-          <div 
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-base">{entry.icon}</span>
-          <span className="text-sm font-medium text-foreground truncate flex-1">
-            {entry.name}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {entry.percentage.toFixed(0)}%
-          </span>
-          <span className="text-sm font-semibold text-foreground">
-            ${entry.value.toFixed(0)}
-          </span>
-          {entry.budget !== undefined && entry.remaining !== undefined && (
-            <span className={cn(
-              "text-xs font-medium",
-              entry.isOverBudget ? 'text-destructive' : 'text-success'
-            )}>
-              ${Math.abs(entry.remaining).toFixed(0)} {entry.isOverBudget ? 'over' : 'left'}
-            </span>
-          )}
-          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-        </button>
-      ))}
+    <div className="space-y-2 mt-4">
+      {data.map((entry) => {
+        // Calculate progress percentage
+        const progressValue = entry.budget !== undefined 
+          ? Math.min((entry.value / entry.budget) * 100, 100)
+          : entry.percentage;
+        
+        const progressColor = entry.isOverBudget 
+          ? 'hsl(var(--destructive))' 
+          : entry.color;
+
+        return (
+          <button
+            key={entry.name}
+            onClick={() => onCategoryClick(entry.categoryData)}
+            className="flex flex-col w-full p-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2 min-h-[28px]">
+              <div 
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: entry.color }}
+              />
+              <span className="text-base">{entry.icon}</span>
+              <span className="text-sm font-medium text-foreground truncate flex-1">
+                {entry.name}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {entry.percentage.toFixed(0)}%
+              </span>
+              <span className="text-sm font-semibold text-foreground">
+                ${entry.value.toFixed(0)}
+              </span>
+              {entry.budget !== undefined && entry.remaining !== undefined && (
+                <span className={cn(
+                  "text-xs font-medium",
+                  entry.isOverBudget ? 'text-destructive' : 'text-success'
+                )}>
+                  ${Math.abs(entry.remaining).toFixed(0)} {entry.isOverBudget ? 'over' : 'left'}
+                </span>
+              )}
+              <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+            </div>
+            {/* Progress bar */}
+            <div className="mt-2 w-full">
+              <div 
+                className="h-1.5 w-full overflow-hidden rounded-full bg-secondary"
+              >
+                <div 
+                  className="h-full transition-all"
+                  style={{ 
+                    width: `${progressValue}%`,
+                    backgroundColor: progressColor
+                  }}
+                />
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -171,6 +171,63 @@ export function useWeeklyTrend() {
   });
 }
 
+export function useDailyWeeklyComparison() {
+  return useQuery({
+    queryKey: ['daily-weekly-comparison'],
+    queryFn: async () => {
+      const now = new Date();
+      const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const lastWeekStart = startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+      const lastWeekEnd = endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 });
+
+      // Fetch this week's receipts
+      const { data: thisWeekReceipts } = await supabase
+        .from('receipts')
+        .select('total_amount, receipt_date')
+        .in('status', ['processed', 'reviewed'])
+        .gte('receipt_date', format(thisWeekStart, 'yyyy-MM-dd'))
+        .lte('receipt_date', format(now, 'yyyy-MM-dd'));
+
+      // Fetch last week's receipts
+      const { data: lastWeekReceipts } = await supabase
+        .from('receipts')
+        .select('total_amount, receipt_date')
+        .in('status', ['processed', 'reviewed'])
+        .gte('receipt_date', format(lastWeekStart, 'yyyy-MM-dd'))
+        .lte('receipt_date', format(lastWeekEnd, 'yyyy-MM-dd'));
+
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const result: Array<{ day: string; thisWeek: number; lastWeek: number }> = [];
+
+      for (let i = 0; i < 7; i++) {
+        const thisWeekDay = new Date(thisWeekStart);
+        thisWeekDay.setDate(thisWeekStart.getDate() + i);
+        const thisWeekDayStr = format(thisWeekDay, 'yyyy-MM-dd');
+
+        const lastWeekDay = new Date(lastWeekStart);
+        lastWeekDay.setDate(lastWeekStart.getDate() + i);
+        const lastWeekDayStr = format(lastWeekDay, 'yyyy-MM-dd');
+
+        const thisWeekTotal = thisWeekReceipts
+          ?.filter(r => r.receipt_date === thisWeekDayStr)
+          .reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0) || 0;
+
+        const lastWeekTotal = lastWeekReceipts
+          ?.filter(r => r.receipt_date === lastWeekDayStr)
+          .reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0) || 0;
+
+        result.push({
+          day: days[i],
+          thisWeek: thisWeekTotal,
+          lastWeek: lastWeekTotal,
+        });
+      }
+
+      return result;
+    },
+  });
+}
+
 export function useMonthlyTrend() {
   return useQuery({
     queryKey: ['monthly-trend'],
