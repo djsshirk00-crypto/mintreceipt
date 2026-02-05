@@ -84,7 +84,7 @@ export function useSpendingOverview(period: OverviewPeriod = 'month') {
       for (let i = periodCount - 1; i >= 0; i--) {
         const { start, end, label } = getRange(i);
         
-        // Get spending from receipts
+        // Get spending from receipts (total_amount is source of truth for overall spending)
         const { data: receipts } = await supabase
           .from('receipts')
           .select('total_amount')
@@ -94,8 +94,7 @@ export function useSpendingOverview(period: OverviewPeriod = 'month') {
         
         const spent = receipts?.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0) || 0;
         
-        // For income, we'll use budget data for the period's month
-        // This is simplified - in a real app you might track actual income transactions
+        // For income, we use budget data for the period's month
         const periodMonth = start.getMonth() + 1;
         const periodYear = start.getFullYear();
         
