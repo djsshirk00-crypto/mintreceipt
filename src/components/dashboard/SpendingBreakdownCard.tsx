@@ -55,24 +55,24 @@ function BudgetAwareLegend({ data, onCategoryClick }: BudgetAwareLegendProps) {
             onClick={() => onCategoryClick(entry.categoryData)}
             className="flex flex-col w-full p-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
           >
-            <div className="flex items-center gap-2 min-h-[28px]">
+            <div className="flex items-center gap-2 min-h-[28px] flex-wrap">
               <div 
                 className="w-3 h-3 rounded-full flex-shrink-0"
                 style={{ backgroundColor: entry.color }}
               />
               <span className="text-base">{entry.icon}</span>
-              <span className="text-sm font-medium text-foreground truncate flex-1">
+              <span className="text-sm font-medium text-foreground flex-shrink-0">
                 {entry.name}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground flex-shrink-0">
                 {entry.percentage.toFixed(0)}%
               </span>
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm font-semibold text-foreground flex-shrink-0">
                 ${entry.value.toFixed(0)}
               </span>
               {entry.budget !== undefined && entry.remaining !== undefined && (
                 <span className={cn(
-                  "text-xs font-medium",
+                  "text-xs font-medium flex-shrink-0 whitespace-nowrap",
                   entry.isOverBudget ? 'text-destructive' : 'text-success'
                 )}>
                   ${Math.abs(entry.remaining).toFixed(0)} {entry.isOverBudget ? 'over' : 'left'}
@@ -171,7 +171,7 @@ export function SpendingBreakdownCard() {
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Spending Breakdown</CardTitle>
+          <CardTitle className="text-lg">Monthly Spending Breakdown</CardTitle>
         </CardHeader>
         <CardContent className="p-8 text-center">
           <p className="text-muted-foreground">No spending data this month.</p>
@@ -183,7 +183,7 @@ export function SpendingBreakdownCard() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Spending Breakdown</CardTitle>
+        <CardTitle className="text-lg">Monthly Spending Breakdown</CardTitle>
       </CardHeader>
       <CardContent>
         {/* Donut Chart */}
