@@ -260,3 +260,69 @@ export function useMonthlyTrend() {
     },
   });
 }
+
+export function useDailyMonthlyComparison() {
+  return useQuery({
+    queryKey: ['daily-monthly-comparison'],
+    queryFn: async () => {
+      const now = new Date();
+      const thisMonthStart = startOfMonth(now);
+      const lastMonthStart = startOfMonth(subMonths(now, 1));
+      const lastMonthEnd = endOfMonth(subMonths(now, 1));
+
+      // Fetch this month's receipts
+      const { data: thisMonthReceipts } = await supabase
+        .from('receipts')
+        .select('total_amount, receipt_date')
+        .in('status', ['processed', 'reviewed'])
+        .gte('receipt_date', format(thisMonthStart, 'yyyy-MM-dd'))
+        .lte('receipt_date', format(now, 'yyyy-MM-dd'));
+
+      // Fetch last month's receipts
+      const { data: lastMonthReceipts } = await supabase
+        .from('receipts')
+        .select('total_amount, receipt_date')
+        .in('status', ['processed', 'reviewed'])
+        .gte('receipt_date', format(lastMonthStart, 'yyyy-MM-dd'))
+        .lte('receipt_date', format(lastMonthEnd, 'yyyy-MM-dd'));
+
+      // Build weekly buckets (Week 1-4/5)
+      const thisMonthDays = endOfMonth(thisMonthStart).getDate();
+      const lastMonthDays = lastMonthEnd.getDate();
+      const numWeeks = Math.ceil(Math.max(thisMonthDays, lastMonthDays) / 7);
+
+      const result: Array<{ week: string; thisMonth: number; lastMonth: number }> = [];
+
+      for (let w = 0; w < numWeeks; w++) {
+        // This month week range
+        const thisStart = w * 7 + 1;
+        const thisEnd = Math.min((w + 1) * 7, thisMonthDays);
+        
+        const thisMonthTotal = thisMonthReceipts
+          ?.filter(r => {
+            const day = parseInt(r.receipt_date?.split('-')[2] || '0');
+            return day >= thisStart && day <= thisEnd;
+          })
+          .reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0) || 0;
+
+        // Last month week range
+        const lastEnd = Math.min((w + 1) * 7, lastMonthDays);
+
+        const lastMonthTotal = lastMonthReceipts
+          ?.filter(r => {
+            const day = parseInt(r.receipt_date?.split('-')[2] || '0');
+            return day >= thisStart && day <= lastEnd;
+          })
+          .reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0) || 0;
+
+        result.push({
+          week: `Week ${w + 1}`,
+          thisMonth: thisMonthTotal,
+          lastMonth: lastMonthTotal,
+        });
+      }
+
+      return result;
+    },
+  });
+}
