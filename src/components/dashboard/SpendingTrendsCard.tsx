@@ -2,33 +2,15 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { useMonthlyTrend, useDailyWeeklyComparison, useDailyMonthlyComparison } from '@/hooks/useSpendingStats';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { useCumulativeSpendingTrend } from '@/hooks/useSpendingTrends';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 type TrendView = 'weekly' | 'monthly';
 
 export function SpendingTrendsCard() {
-  const [view, setView] = useState<TrendView>('weekly');
-  const { data: dailyComparison, isLoading: weeklyLoading } = useDailyWeeklyComparison();
-  const { data: monthlyComparison, isLoading: monthlyLoading } = useDailyMonthlyComparison();
-
-  const isLoading = view === 'weekly' ? weeklyLoading : monthlyLoading;
-  
-  const weeklyData = dailyComparison?.map(d => ({
-    label: d.day,
-    thisWeek: d.thisWeek,
-    lastWeek: d.lastWeek,
-  }));
-
-  const monthlyData = monthlyComparison?.map(m => ({ 
-    label: m.week, 
-    thisMonth: m.thisMonth,
-    lastMonth: m.lastMonth,
-  }));
-
-  const hasWeeklyData = weeklyData && weeklyData.some(d => d.thisWeek > 0 || d.lastWeek > 0);
-  const hasMonthlyData = monthlyData && monthlyData.some(d => d.thisMonth > 0 || d.lastMonth > 0);
-  const hasData = view === 'weekly' ? hasWeeklyData : hasMonthlyData;
+  const [view, setView] = useState<TrendView>('monthly');
+  const { data, isLoading } = useCumulativeSpendingTrend(view);
 
   if (isLoading) {
     return (
@@ -44,24 +26,30 @@ export function SpendingTrendsCard() {
     );
   }
 
+  const hasData = data && data.points.some(p => p.current > 0 || p.previous > 0);
+
+  const toggleGroup = (
+    <ToggleGroup 
+      type="single" 
+      value={view} 
+      onValueChange={(v) => v && setView(v as TrendView)}
+      className="h-9"
+    >
+      <ToggleGroupItem value="weekly" className="text-xs px-3 h-8">
+        Weekly
+      </ToggleGroupItem>
+      <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">
+        Monthly
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+
   if (!hasData) {
     return (
       <Card>
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-lg">Spending Trends</CardTitle>
-          <ToggleGroup 
-            type="single" 
-            value={view} 
-            onValueChange={(v) => v && setView(v as TrendView)}
-            className="h-9"
-          >
-            <ToggleGroupItem value="weekly" className="text-xs px-3 h-8">
-              Weekly
-            </ToggleGroupItem>
-            <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">
-              Monthly
-            </ToggleGroupItem>
-          </ToggleGroup>
+          {toggleGroup}
         </CardHeader>
         <CardContent className="p-8 text-center">
           <p className="text-muted-foreground">No spending data to show trends.</p>
@@ -70,132 +58,132 @@ export function SpendingTrendsCard() {
     );
   }
 
+  const currentTotal = data!.currentTotal;
+  const previousTotal = data!.previousTotal;
+  const diff = previousTotal - currentTotal;
+  const isUnder = diff >= 0;
+  const budget = data!.totalBudget;
+  const periodLabel = view === 'monthly' ? 'this month' : 'this week';
+  const comparisonLabel = view === 'monthly' ? 'avg. spend' : 'last week';
+
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-lg">Spending Trends</CardTitle>
-        <ToggleGroup 
-          type="single" 
-          value={view} 
-          onValueChange={(v) => v && setView(v as TrendView)}
-          className="h-9"
-        >
-          <ToggleGroupItem value="weekly" className="text-xs px-3 h-8">
-            Weekly
-          </ToggleGroupItem>
-          <ToggleGroupItem value="monthly" className="text-xs px-3 h-8">
-            Monthly
-          </ToggleGroupItem>
-        </ToggleGroup>
+        {toggleGroup}
       </CardHeader>
       <CardContent>
+        {/* Summary header */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Current spend {periodLabel}</p>
+            <p className="text-2xl font-bold text-foreground">${currentTotal.toFixed(0)}</p>
+          </div>
+          {previousTotal > 0 && (
+            <div className="flex items-center gap-1.5">
+              {isUnder ? (
+                <CheckCircle2 className="h-5 w-5 text-success" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+              )}
+              <div className="text-right">
+                <p className="text-sm font-medium text-foreground">
+                  ${Math.abs(diff).toFixed(0)} {isUnder ? 'below' : 'above'}
+                </p>
+                <p className="text-xs text-muted-foreground">{comparisonLabel}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Area chart */}
+        <div className="h-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data!.points}>
+              <defs>
+                <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <XAxis 
+                dataKey="label" 
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis 
+                tick={{ fontSize: 10 }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `$${v}`}
+                width={45}
+              />
+              <Tooltip 
+                formatter={(value: number, name: string) => [
+                  `$${value.toFixed(2)}`, 
+                  name === 'current' ? (view === 'monthly' ? 'This Month' : 'This Week') : (view === 'monthly' ? 'Last Month' : 'Last Week')
+                ]}
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--background))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+              />
+              {/* Budget reference line */}
+              {budget > 0 && (
+                <ReferenceLine 
+                  y={budget} 
+                  stroke="hsl(var(--muted-foreground))"
+                  strokeDasharray="6 4"
+                  strokeWidth={1}
+                  label={{ 
+                    value: 'BUDGET', 
+                    position: 'right',
+                    fontSize: 10,
+                    fill: 'hsl(var(--muted-foreground))'
+                  }}
+                />
+              )}
+              {/* Previous period shadow area */}
+              <Area
+                type="monotone"
+                dataKey="previous"
+                stroke="none"
+                fill="hsl(var(--muted-foreground))"
+                fillOpacity={0.08}
+              />
+              {/* Current period line + fill */}
+              <Area
+                type="monotone"
+                dataKey="current"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                fill="url(#spendGradient)"
+                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }}
+                activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
         {/* Legend */}
-        <div className="flex items-center gap-4 mb-2 text-xs">
+        <div className="flex items-center gap-4 mt-2 text-xs">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-0.5 bg-primary rounded" />
-            <span className="text-muted-foreground">{view === 'weekly' ? 'This Week' : 'This Month'}</span>
+            <span className="text-muted-foreground">{view === 'monthly' ? 'This Month' : 'This Week'}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-0.5 bg-muted-foreground/50 rounded" style={{ borderStyle: 'dashed' }} />
-            <span className="text-muted-foreground">{view === 'weekly' ? 'Last Week' : 'Last Month'}</span>
+            <div className="w-3 h-3 rounded-sm bg-muted-foreground/10" />
+            <span className="text-muted-foreground">{view === 'monthly' ? 'Last Month' : 'Last Week'}</span>
           </div>
-        </div>
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            {view === 'weekly' ? (
-              <LineChart data={weeklyData}>
-                <XAxis 
-                  dataKey="label" 
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `$${v}`}
-                  width={50}
-                />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    `$${value.toFixed(2)}`, 
-                    name === 'thisWeek' ? 'This Week' : 'Last Week'
-                  ]}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                {/* Last week shadow line */}
-                <Line 
-                  type="monotone" 
-                  dataKey="lastWeek" 
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 4"
-                  dot={false}
-                  opacity={0.5}
-                />
-                {/* This week main line */}
-                <Line 
-                  type="monotone" 
-                  dataKey="thisWeek" 
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
-                  activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
-                />
-              </LineChart>
-            ) : (
-              <LineChart data={monthlyData}>
-                <XAxis 
-                  dataKey="label" 
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 11 }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => `$${v}`}
-                  width={50}
-                />
-                <Tooltip 
-                  formatter={(value: number, name: string) => [
-                    `$${value.toFixed(2)}`, 
-                    name === 'thisMonth' ? 'This Month' : 'Last Month'
-                  ]}
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                {/* Last month shadow line */}
-                <Line 
-                  type="monotone" 
-                  dataKey="lastMonth" 
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeWidth={1.5}
-                  strokeDasharray="4 4"
-                  dot={false}
-                  opacity={0.5}
-                />
-                {/* This month main line */}
-                <Line 
-                  type="monotone" 
-                  dataKey="thisMonth" 
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 4 }}
-                  activeDot={{ r: 6, fill: 'hsl(var(--primary))' }}
-                />
-              </LineChart>
-            )}
-          </ResponsiveContainer>
+          {budget > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-0 border-t border-dashed border-muted-foreground" />
+              <span className="text-muted-foreground">Budget</span>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

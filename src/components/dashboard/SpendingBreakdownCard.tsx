@@ -118,7 +118,7 @@ export function SpendingBreakdownCard() {
   }, [budgetsWithSpending]);
 
   const handleCategoryClick = useCallback((category: CategorySpending) => {
-    navigate(`/category/${category.categoryId}`);
+    navigate(`/category/${encodeURIComponent(category.categoryName)}`);
   }, [navigate]);
 
   if (isLoading) {
