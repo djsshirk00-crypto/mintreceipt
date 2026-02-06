@@ -161,8 +161,8 @@ export function SpendingTrendsCard() {
                 stroke="hsl(var(--primary))"
                 strokeWidth={2}
                 fill="url(#spendGradient)"
-                dot={{ fill: 'hsl(var(--primary))', strokeWidth: 0, r: 3 }}
-                activeDot={{ r: 5, fill: 'hsl(var(--primary))' }}
+                dot={false}
+                activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
               />
             </AreaChart>
           </ResponsiveContainer>
