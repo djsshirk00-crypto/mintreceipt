@@ -15,6 +15,8 @@ import BudgetPage from "./pages/BudgetPage";
 import ReportsPage from "./pages/ReportsPage";
 import SettingsPage from "./pages/SettingsPage";
 import CategoryDetailPage from "./pages/CategoryDetailPage";
+import IncomePage from "./pages/IncomePage";
+import RentalPropertiesPage from "./pages/RentalPropertiesPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -36,6 +38,8 @@ const App = () => (
             <Route path="/budget" element={<AuthGuard><BudgetPage /></AuthGuard>} />
             <Route path="/categories" element={<AuthGuard><BudgetPage /></AuthGuard>} />
             <Route path="/reports" element={<AuthGuard><ReportsPage /></AuthGuard>} />
+            <Route path="/income" element={<AuthGuard><IncomePage /></AuthGuard>} />
+            <Route path="/rentals" element={<AuthGuard><RentalPropertiesPage /></AuthGuard>} />
             <Route path="/category/:categoryName" element={<AuthGuard><CategoryDetailPage /></AuthGuard>} />
             <Route path="/settings" element={<AuthGuard><SettingsPage /></AuthGuard>} />
             <Route path="*" element={<NotFound />} />
